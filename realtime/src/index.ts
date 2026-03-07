@@ -15,7 +15,9 @@ type RoomPublicState = {
 };
 
 type RoomInternalState = RoomPublicState & {
-  socketsByPlayer: Record<string, string>;
+  socketsByPlayerId: Record<string, string>;
+  playerNameById: Record<string, string>;
+  disconnectTimersByPlayerId: Record<string, ReturnType<typeof setTimeout>>;
 };
 
 const laddersAndSnakes: Record<number, number> = {
@@ -43,6 +45,7 @@ const laddersAndSnakes: Record<number, number> = {
 };
 
 const rooms = new Map<string, RoomInternalState>();
+const disconnectGraceMs = Number(process.env.DISCONNECT_GRACE_MS ?? 60_000);
 
 const app = express();
 app.use(cors());
@@ -72,19 +75,30 @@ function emitRoomState(roomCode: string, room: RoomInternalState) {
   io.to(roomCode).emit(roomEvent(roomCode), publicState(room));
 }
 
-function attachPlayerToSocket(roomCode: string, playerName: string, socketId: string) {
+function attachPlayerToSocket(roomCode: string, playerId: string, socketId: string) {
   const room = rooms.get(roomCode);
   if (!room) {
     return;
   }
 
-  const previousSocketId = room.socketsByPlayer[playerName];
+  const playerName = room.playerNameById[playerId];
+  if (!playerName) {
+    return;
+  }
+
+  const previousSocketId = room.socketsByPlayerId[playerId];
   if (previousSocketId && previousSocketId !== socketId) {
     io.sockets.sockets.get(previousSocketId)?.disconnect(true);
   }
 
-  room.socketsByPlayer[playerName] = socketId;
+  room.socketsByPlayerId[playerId] = socketId;
   room.online[playerName] = true;
+
+  const pendingTimer = room.disconnectTimersByPlayerId[playerId];
+  if (pendingTimer) {
+    clearTimeout(pendingTimer);
+    delete room.disconnectTimersByPlayerId[playerId];
+  }
 }
 
 function resetRoom(room: RoomInternalState) {
@@ -99,13 +113,14 @@ io.on("connection", (socket) => {
   socket.on(
     "room:create",
     (
-      payload: { roomCode: string; playerName: string },
-      callback: (result: { ok: boolean; message?: string }) => void
+      payload: { roomCode: string; playerName: string; playerId: string },
+      callback: (result: { ok: boolean; message?: string; playerName?: string }) => void
     ) => {
       const roomCode = payload.roomCode.trim().toUpperCase();
       const playerName = payload.playerName.trim();
-      if (!roomCode || !playerName) {
-        callback({ ok: false, message: "Room code and player name are required." });
+      const playerId = payload.playerId.trim();
+      if (!roomCode || !playerName || !playerId) {
+        callback({ ok: false, message: "Room code, player name, and player id are required." });
         return;
       }
       if (rooms.has(roomCode)) {
@@ -119,44 +134,55 @@ io.on("connection", (socket) => {
         turnIndex: 0,
         winner: null,
         online: { [playerName]: true },
-        socketsByPlayer: { [playerName]: socket.id }
+        socketsByPlayerId: { [playerId]: socket.id },
+        playerNameById: { [playerId]: playerName },
+        disconnectTimersByPlayerId: {}
       };
 
       rooms.set(roomCode, room);
       socket.join(roomCode);
       socket.data.roomCode = roomCode;
       socket.data.playerName = playerName;
+      socket.data.playerId = playerId;
       emitRoomState(roomCode, room);
-      callback({ ok: true });
+      callback({ ok: true, playerName });
     }
   );
 
   socket.on(
     "room:join",
     (
-      payload: { roomCode: string; playerName: string },
-      callback: (result: { ok: boolean; message?: string }) => void
+      payload: { roomCode: string; playerName: string; playerId: string },
+      callback: (result: { ok: boolean; message?: string; playerName?: string }) => void
     ) => {
       const roomCode = payload.roomCode.trim().toUpperCase();
-      const playerName = payload.playerName.trim();
+      const requestedName = payload.playerName.trim();
+      const playerId = payload.playerId.trim();
       const room = rooms.get(roomCode);
 
       if (!room) {
         callback({ ok: false, message: "Room not found." });
         return;
       }
-      if (!playerName) {
-        callback({ ok: false, message: "Player name is required." });
+      if (!requestedName || !playerId) {
+        callback({ ok: false, message: "Player name and player id are required." });
         return;
       }
 
-      if (room.players.includes(playerName)) {
-        attachPlayerToSocket(roomCode, playerName, socket.id);
+      const existingNameForId = room.playerNameById[playerId];
+      if (existingNameForId) {
+        attachPlayerToSocket(roomCode, playerId, socket.id);
         socket.join(roomCode);
         socket.data.roomCode = roomCode;
-        socket.data.playerName = playerName;
+        socket.data.playerName = existingNameForId;
+        socket.data.playerId = playerId;
         emitRoomState(roomCode, room);
-        callback({ ok: true, message: "Reconnected to room." });
+        callback({ ok: true, message: "Reconnected to room.", playerName: existingNameForId });
+        return;
+      }
+
+      if (room.players.includes(requestedName)) {
+        callback({ ok: false, message: "Player name already taken in this room." });
         return;
       }
 
@@ -165,16 +191,18 @@ io.on("connection", (socket) => {
         return;
       }
 
-      room.players.push(playerName);
-      room.positions[playerName] = 1;
-      room.online[playerName] = true;
-      room.socketsByPlayer[playerName] = socket.id;
+      room.players.push(requestedName);
+      room.positions[requestedName] = 1;
+      room.online[requestedName] = true;
+      room.socketsByPlayerId[playerId] = socket.id;
+      room.playerNameById[playerId] = requestedName;
 
       socket.join(roomCode);
       socket.data.roomCode = roomCode;
-      socket.data.playerName = playerName;
+      socket.data.playerName = requestedName;
+      socket.data.playerId = playerId;
       emitRoomState(roomCode, room);
-      callback({ ok: true });
+      callback({ ok: true, playerName: requestedName });
     }
   );
 
@@ -255,8 +283,8 @@ io.on("connection", (socket) => {
 
   socket.on("disconnect", () => {
     const roomCode = socket.data.roomCode as string | undefined;
-    const playerName = socket.data.playerName as string | undefined;
-    if (!roomCode || !playerName) {
+    const playerId = socket.data.playerId as string | undefined;
+    if (!roomCode || !playerId) {
       return;
     }
 
@@ -265,10 +293,70 @@ io.on("connection", (socket) => {
       return;
     }
 
-    if (room.socketsByPlayer[playerName] === socket.id) {
-      delete room.socketsByPlayer[playerName];
+    const playerName = room.playerNameById[playerId];
+    if (!playerName) {
+      return;
+    }
+
+    if (room.socketsByPlayerId[playerId] === socket.id) {
+      delete room.socketsByPlayerId[playerId];
       room.online[playerName] = false;
       emitRoomState(roomCode, room);
+
+      const existingTimer = room.disconnectTimersByPlayerId[playerId];
+      if (existingTimer) {
+        clearTimeout(existingTimer);
+      }
+
+      room.disconnectTimersByPlayerId[playerId] = setTimeout(() => {
+        const latestRoom = rooms.get(roomCode);
+        if (!latestRoom) {
+          return;
+        }
+
+        const latestPlayerName = latestRoom.playerNameById[playerId];
+        if (!latestPlayerName) {
+          delete latestRoom.disconnectTimersByPlayerId[playerId];
+          return;
+        }
+        if (latestRoom.socketsByPlayerId[playerId]) {
+          delete latestRoom.disconnectTimersByPlayerId[playerId];
+          return;
+        }
+
+        const removedIndex = latestRoom.players.indexOf(latestPlayerName);
+        if (removedIndex !== -1) {
+          latestRoom.players.splice(removedIndex, 1);
+        }
+
+        delete latestRoom.positions[latestPlayerName];
+        delete latestRoom.online[latestPlayerName];
+        delete latestRoom.playerNameById[playerId];
+        delete latestRoom.disconnectTimersByPlayerId[playerId];
+
+        if (latestRoom.winner === latestPlayerName) {
+          latestRoom.winner = null;
+        }
+
+        if (latestRoom.players.length === 0) {
+          rooms.delete(roomCode);
+          return;
+        }
+
+        if (removedIndex !== -1) {
+          if (latestRoom.turnIndex > removedIndex) {
+            latestRoom.turnIndex -= 1;
+          } else if (latestRoom.turnIndex === removedIndex && latestRoom.turnIndex >= latestRoom.players.length) {
+            latestRoom.turnIndex = 0;
+          }
+        }
+
+        if (latestRoom.turnIndex >= latestRoom.players.length) {
+          latestRoom.turnIndex = 0;
+        }
+
+        emitRoomState(roomCode, latestRoom);
+      }, disconnectGraceMs);
     }
   });
 });

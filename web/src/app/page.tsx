@@ -12,13 +12,15 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 const realtimeUrl = process.env.NEXT_PUBLIC_REALTIME_URL ?? "http://localhost:4000";
 const identityNameKey = "snl_player_name";
 const identityRoomKey = "snl_room_code";
+const identityPlayerIdKey = "snl_player_id";
 
-function persistIdentity(playerName: string, roomCode: string) {
+function persistIdentity(playerName: string, roomCode: string, playerId: string) {
   if (typeof window === "undefined") {
     return;
   }
   window.localStorage.setItem(identityNameKey, playerName);
   window.localStorage.setItem(identityRoomKey, roomCode);
+  window.localStorage.setItem(identityPlayerIdKey, playerId);
 }
 
 function readStoredValue(key: string) {
@@ -26,6 +28,30 @@ function readStoredValue(key: string) {
     return "";
   }
   return window.localStorage.getItem(key) ?? "";
+}
+
+function ensureStoredPlayerId() {
+  if (typeof window === "undefined") {
+    return "";
+  }
+  const existing = window.localStorage.getItem(identityPlayerIdKey);
+  if (existing) {
+    return existing;
+  }
+  const generated = crypto.randomUUID();
+  window.localStorage.setItem(identityPlayerIdKey, generated);
+  return generated;
+}
+
+function resolvePlayerId(stateValue: string, setPlayerId: (value: string) => void) {
+  if (stateValue.trim()) {
+    return stateValue.trim();
+  }
+  const generated = ensureStoredPlayerId().trim();
+  if (generated) {
+    setPlayerId(generated);
+  }
+  return generated;
 }
 
 export default function Home() {
@@ -41,6 +67,7 @@ export default function Home() {
   const [playerName, setPlayerName] = useState(() => readStoredValue(identityNameKey));
   const [currentPlayerName, setCurrentPlayerName] = useState<string | null>(null);
   const [roomCode, setRoomCode] = useState(() => readStoredValue(identityRoomKey));
+  const [playerId, setPlayerId] = useState(() => readStoredValue(identityPlayerIdKey));
   const [joinedRoom, setJoinedRoom] = useState<string | null>(null);
   const [status, setStatus] = useState("Enter your name and room code.");
   const [lastRoll, setLastRoll] = useState("No rolls yet.");
@@ -244,7 +271,8 @@ export default function Home() {
 
       const cleanRoom = roomCode.trim().toUpperCase();
       const cleanName = playerName.trim();
-      if (!cleanRoom || !cleanName) {
+      const cleanPlayerId = resolvePlayerId(playerId, setPlayerId);
+      if (!cleanRoom || !cleanName || !cleanPlayerId) {
         if (!options?.silentError) {
           const message = "Room code and player name are required.";
           setStatus(message);
@@ -253,7 +281,10 @@ export default function Home() {
         return;
       }
 
-      socket.emit("room:join", { roomCode: cleanRoom, playerName: cleanName }, (response: { ok: boolean; message?: string }) => {
+      socket.emit(
+        "room:join",
+        { roomCode: cleanRoom, playerName: cleanName, playerId: cleanPlayerId },
+        (response: { ok: boolean; message?: string; playerName?: string }) => {
         if (!response.ok) {
           const message = response.message ?? "Unable to join room.";
           setStatus(message);
@@ -263,21 +294,23 @@ export default function Home() {
           return;
         }
 
+        const resolvedName = response.playerName ?? cleanName;
         setJoinedRoom(cleanRoom);
-        setCurrentPlayerName(cleanName);
-        persistIdentity(cleanName, cleanRoom);
+        setCurrentPlayerName(resolvedName);
+        setPlayerName(resolvedName);
+        persistIdentity(resolvedName, cleanRoom, cleanPlayerId);
         roundNumberRef.current = 0;
         setMoveLog([]);
 
         const message = options?.isReconnect
-          ? `Reconnected as ${cleanName} in room ${cleanRoom}.`
+          ? `Reconnected as ${resolvedName} in room ${cleanRoom}.`
           : `Joined room ${cleanRoom}. Wait for your turn.`;
 
         setStatus(message);
         toast.success(message);
       });
     },
-    [playerName, roomCode]
+    [playerId, playerName, roomCode]
   );
 
   useEffect(() => {
@@ -304,7 +337,8 @@ export default function Home() {
 
     const cleanRoom = roomCode.trim().toUpperCase();
     const cleanName = playerName.trim();
-    if (!cleanRoom || !cleanName) {
+    const cleanPlayerId = resolvePlayerId(playerId, setPlayerId);
+    if (!cleanRoom || !cleanName || !cleanPlayerId) {
       const message = "Room code and player name are required.";
       setStatus(message);
       toast.error(message);
@@ -313,8 +347,8 @@ export default function Home() {
 
     socket.emit(
       "room:create",
-      { roomCode: cleanRoom, playerName: cleanName },
-      (response: { ok: boolean; message?: string }) => {
+      { roomCode: cleanRoom, playerName: cleanName, playerId: cleanPlayerId },
+      (response: { ok: boolean; message?: string; playerName?: string }) => {
         if (!response.ok) {
           const message = response.message ?? "Unable to create room.";
           setStatus(message);
@@ -322,10 +356,12 @@ export default function Home() {
           return;
         }
 
+        const resolvedName = response.playerName ?? cleanName;
         setJoinedRoom(cleanRoom);
-        setCurrentPlayerName(cleanName);
+        setCurrentPlayerName(resolvedName);
+        setPlayerName(resolvedName);
         autoJoinAttemptedRef.current = true;
-        persistIdentity(cleanName, cleanRoom);
+        persistIdentity(resolvedName, cleanRoom, cleanPlayerId);
         roundNumberRef.current = 0;
         setMoveLog([]);
 
