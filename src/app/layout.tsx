@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import PwaRegister from "@/components/pwa-register";
+import { Toaster } from "sonner";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -33,6 +34,7 @@ export default function RootLayout({
     <html lang="en">
       <body className="antialiased">
         <PwaRegister />
+        <Toaster richColors position="top-right" />
         {children}
       </body>
     </html>

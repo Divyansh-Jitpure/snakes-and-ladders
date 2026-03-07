@@ -1,6 +1,7 @@
 "use client";
 
 import { motion } from "framer-motion";
+import { toast } from "sonner";
 import { io, type Socket } from "socket.io-client";
 import { useEffect, useMemo, useRef, useState } from "react";
 
@@ -88,8 +89,14 @@ export default function Home() {
     const socket = io(realtimeUrl, { transports: ["websocket"] });
     socketRef.current = socket;
 
-    socket.on("connect", () => setConnected(true));
-    socket.on("disconnect", () => setConnected(false));
+    socket.on("connect", () => {
+      setConnected(true);
+      toast.success("Connected to realtime server.");
+    });
+    socket.on("disconnect", () => {
+      setConnected(false);
+      toast.error("Disconnected from realtime server.");
+    });
 
     return () => {
       socket.disconnect();
@@ -108,7 +115,9 @@ export default function Home() {
     const handleState = (incomingState: RoomState) => {
       setRoomState(incomingState);
       if (incomingState.winner) {
-        setStatus(`${incomingState.winner} won the match.`);
+        const message = `${incomingState.winner} won the match.`;
+        setStatus(message);
+        toast.success(message);
       }
     };
 
@@ -136,12 +145,16 @@ export default function Home() {
       { roomCode, playerName },
       (response: { ok: boolean; message?: string }) => {
         if (!response.ok) {
-          setStatus(response.message ?? "Unable to create room.");
+          const message = response.message ?? "Unable to create room.";
+          setStatus(message);
+          toast.error(message);
           return;
         }
         const cleanRoom = roomCode.trim().toUpperCase();
         setJoinedRoom(cleanRoom);
-        setStatus(`Room ${cleanRoom} created. Share this code with friends.`);
+        const message = `Room ${cleanRoom} created. Share this code with friends.`;
+        setStatus(message);
+        toast.success(message);
       }
     );
   };
@@ -157,12 +170,16 @@ export default function Home() {
       { roomCode, playerName },
       (response: { ok: boolean; message?: string }) => {
         if (!response.ok) {
-          setStatus(response.message ?? "Unable to join room.");
+          const message = response.message ?? "Unable to join room.";
+          setStatus(message);
+          toast.error(message);
           return;
         }
         const cleanRoom = roomCode.trim().toUpperCase();
         setJoinedRoom(cleanRoom);
-        setStatus(`Joined room ${cleanRoom}. Wait for your turn.`);
+        const message = `Joined room ${cleanRoom}. Wait for your turn.`;
+        setStatus(message);
+        toast.success(message);
       }
     );
   };
@@ -170,8 +187,12 @@ export default function Home() {
   const rollDice = () => {
     socketRef.current?.emit("game:roll", {}, (response: { ok: boolean; message?: string }) => {
       if (!response.ok) {
-        setStatus(response.message ?? "Unable to roll dice.");
+        const message = response.message ?? "Unable to roll dice.";
+        setStatus(message);
+        toast.error(message);
+        return;
       }
+      toast.info("Dice rolled.");
     });
   };
 
