@@ -1,36 +1,81 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Snakes and Ladders Online
 
-## Getting Started
+Beginner-friendly starter with:
+- `web`: Next.js + Tailwind + Framer Motion
+- `realtime`: Express + Socket.IO
+- `web/prisma`: Prisma schema for Postgres
+- PWA-ready manifest + service worker
+- Mobile-first responsive board and controls
 
-First, run the development server:
+## 1) Setup env files
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+cd web
+copy .env.example .env
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+```bash
+cd ..\realtime
+copy .env.example .env
+```
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+Update `DATABASE_URL` in `web/.env` with your Supabase/Neon Postgres URL.
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## 2) Generate Prisma client
 
-## Learn More
+```bash
+cd web
+npm run prisma:generate
+```
 
-To learn more about Next.js, take a look at the following resources:
+## 3) Run both apps
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+Terminal A:
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+```bash
+cd realtime
+npm run dev
+```
 
-## Deploy on Vercel
+Terminal B:
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+```bash
+cd web
+npm run dev
+```
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Open `http://localhost:3000`.
+
+## 4) PWA setup (already included)
+
+- `web/public/manifest.webmanifest` is configured
+- `web/public/sw.js` is registered in production
+- PWA icons are in `web/public/icon-192x192.svg` and `web/public/icon-512x512.svg`
+
+To test install behavior:
+
+```bash
+cd web
+npm run build
+npm run start
+```
+
+Then open `http://localhost:3000` in a Chromium browser and use "Install app".
+
+## What is already working
+
+- Create room
+- Join room
+- Turn-based live dice rolls
+- Snakes/ladders movement
+- Win detection
+- Room state sync for all players
+- Responsive layout for mobile and desktop
+- PWA install metadata and offline shell cache
+
+## Next features to build
+
+- Board UI (10x10 grid with piece animation)
+- Guest auth + persistent users
+- Save match + moves into Postgres
+- Rejoin/disconnect handling
