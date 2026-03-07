@@ -24,9 +24,10 @@ type JoinMode = "create" | "join";
 type PlayScreenProps = {
   initialRoomCode: string;
   mode: JoinMode;
+  initialPlayerName?: string;
 };
 
-export default function PlayScreen({ initialRoomCode, mode }: PlayScreenProps) {
+export default function PlayScreen({ initialRoomCode, mode, initialPlayerName = "" }: PlayScreenProps) {
   const router = useRouter();
   const socketRef = useRef<Socket | null>(null);
   const rollingTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -37,7 +38,7 @@ export default function PlayScreen({ initialRoomCode, mode }: PlayScreenProps) {
   const savedRoundKeysRef = useRef<Record<string, boolean>>({});
 
   const [connected, setConnected] = useState(false);
-  const [playerName, setPlayerName] = useState(() => readStoredValue(identityNameKey));
+  const [playerName, setPlayerName] = useState(() => readStoredValue(identityNameKey) || initialPlayerName.trim());
   const [currentPlayerName, setCurrentPlayerName] = useState<string | null>(null);
   const [roomCode] = useState(() => initialRoomCode.trim().toUpperCase());
   const [playerId, setPlayerId] = useState(() => readStoredValue(identityPlayerIdKey));

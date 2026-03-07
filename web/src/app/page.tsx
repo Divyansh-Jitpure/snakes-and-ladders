@@ -4,7 +4,6 @@ import {
   ensureStoredPlayerId,
   identityNameKey,
   identityRoomKey,
-  persistIdentity,
   readStoredValue
 } from "@/components/game/identity";
 import { motion } from "framer-motion";
@@ -21,11 +20,17 @@ export default function Home() {
   const router = useRouter();
   const [playerName, setPlayerName] = useState("");
   const [roomCode, setRoomCode] = useState("");
+  const [savedPlayerName, setSavedPlayerName] = useState("");
+  const [savedRoomCode, setSavedRoomCode] = useState("");
 
   useEffect(() => {
     const timer = setTimeout(() => {
-      setPlayerName(readStoredValue(identityNameKey));
-      setRoomCode(readStoredValue(identityRoomKey));
+      const storedName = readStoredValue(identityNameKey);
+      const storedRoom = sanitizeRoomCode(readStoredValue(identityRoomKey));
+      setSavedPlayerName(storedName);
+      setSavedRoomCode(storedRoom);
+      setPlayerName(storedName);
+      setRoomCode(storedRoom);
     }, 0);
     return () => clearTimeout(timer);
   }, []);
@@ -34,20 +39,19 @@ export default function Home() {
     return Boolean(playerName.trim() && sanitizeRoomCode(roomCode));
   }, [playerName, roomCode]);
   const hasSavedSession = useMemo(() => {
-    return Boolean(playerName.trim() && sanitizeRoomCode(roomCode));
-  }, [playerName, roomCode]);
+    return Boolean(savedPlayerName.trim() && savedRoomCode);
+  }, [savedPlayerName, savedRoomCode]);
 
-  const goToGame = (mode: "create" | "join") => {
-    const cleanName = playerName.trim();
-    const cleanRoom = sanitizeRoomCode(roomCode);
+  const goToGame = (mode: "create" | "join", options?: { roomCode?: string; playerName?: string }) => {
+    const cleanName = (options?.playerName ?? playerName).trim();
+    const cleanRoom = sanitizeRoomCode(options?.roomCode ?? roomCode);
     if (!cleanName || !cleanRoom) {
       toast.error("Player name and room code are required.");
       return;
     }
 
-    const playerId = ensureStoredPlayerId();
-    persistIdentity(cleanName, cleanRoom, playerId);
-    router.push(`/play/${cleanRoom}?mode=${mode}`);
+    ensureStoredPlayerId();
+    router.push(`/play/${cleanRoom}?mode=${mode}&player=${encodeURIComponent(cleanName)}`);
   };
 
   return (
@@ -123,12 +127,12 @@ export default function Home() {
             <div className="mt-3 rounded-xl border border-emerald-400/35 bg-emerald-300/10 p-3">
               <p className="text-xs font-semibold uppercase tracking-wide text-emerald-200/80">Active session found</p>
               <p className="mt-1 text-sm text-emerald-100/90">
-                Rejoin <span className="font-semibold">{sanitizeRoomCode(roomCode)}</span> as{" "}
-                <span className="font-semibold">{playerName.trim()}</span>.
+                Rejoin <span className="font-semibold">{savedRoomCode}</span> as{" "}
+                <span className="font-semibold">{savedPlayerName.trim()}</span>.
               </p>
               <button
                 className="mt-3 w-full rounded-xl bg-emerald-600 px-4 py-2 font-semibold text-white transition hover:bg-emerald-500"
-                onClick={() => goToGame("join")}
+                onClick={() => goToGame("join", { roomCode: savedRoomCode, playerName: savedPlayerName })}
               >
                 Back to Game
               </button>
