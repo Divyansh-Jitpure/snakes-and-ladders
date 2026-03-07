@@ -86,6 +86,52 @@ function positionToBoardPoint(position: number) {
   };
 }
 
+function snakePath(jump: Jump, index: number) {
+  const from = positionToBoardPoint(jump.from);
+  const to = positionToBoardPoint(jump.to);
+  const bend = index % 2 === 0 ? 1 : -1;
+  const cx = (from.left + to.left) / 2 + ((from.top - to.top) / 3) * bend;
+  const cy = (from.top + to.top) / 2 + ((to.left - from.left) / 4) * bend;
+  return `M ${from.left} ${from.top} Q ${cx} ${cy}, ${to.left} ${to.top}`;
+}
+
+function ladderSegments(jump: Jump) {
+  const from = positionToBoardPoint(jump.from);
+  const to = positionToBoardPoint(jump.to);
+  const dx = to.left - from.left;
+  const dy = to.top - from.top;
+  const length = Math.sqrt(dx * dx + dy * dy) || 1;
+  const px = (-dy / length) * 1.2;
+  const py = (dx / length) * 1.2;
+
+  const railA = {
+    x1: from.left + px,
+    y1: from.top + py,
+    x2: to.left + px,
+    y2: to.top + py
+  };
+  const railB = {
+    x1: from.left - px,
+    y1: from.top - py,
+    x2: to.left - px,
+    y2: to.top - py
+  };
+
+  const rungs = Array.from({ length: 4 }).map((_, rungIndex) => {
+    const t = (rungIndex + 1) / 5;
+    const cx = from.left + dx * t;
+    const cy = from.top + dy * t;
+    return {
+      x1: cx + px,
+      y1: cy + py,
+      x2: cx - px,
+      y2: cy - py
+    };
+  });
+
+  return { railA, railB, rungs };
+}
+
 function persistIdentity(playerName: string, roomCode: string) {
   if (typeof window === "undefined") {
     return;
@@ -489,6 +535,40 @@ export default function Home() {
                   );
                 })}
               </div>
+
+              <svg
+                viewBox="0 0 100 100"
+                preserveAspectRatio="none"
+                className="pointer-events-none absolute inset-0 z-[1]"
+              >
+                {jumps
+                  .filter((jump) => jump.type === "snake")
+                  .map((jump, index) => (
+                    <path
+                      key={`snake-${jump.from}-${jump.to}`}
+                      d={snakePath(jump, index)}
+                      fill="none"
+                      stroke="#dc2626"
+                      strokeWidth="1.4"
+                      strokeLinecap="round"
+                    />
+                  ))}
+
+                {jumps
+                  .filter((jump) => jump.type === "ladder")
+                  .map((jump) => {
+                    const { railA, railB, rungs } = ladderSegments(jump);
+                    return (
+                      <g key={`ladder-${jump.from}-${jump.to}`} stroke="#047857" strokeWidth="0.7" strokeLinecap="round">
+                        <line {...railA} />
+                        <line {...railB} />
+                        {rungs.map((rung) => (
+                          <line key={`${jump.from}-${jump.to}-${rung.x1}`} {...rung} />
+                        ))}
+                      </g>
+                    );
+                  })}
+              </svg>
 
               {roomState?.players.map((player, index) => {
                 const position = roomState.positions[player] ?? 1;
