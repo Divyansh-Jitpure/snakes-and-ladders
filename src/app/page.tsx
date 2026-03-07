@@ -170,6 +170,7 @@ export default function Home() {
   const [lastRoll, setLastRoll] = useState("No rolls yet.");
   const [diceFace, setDiceFace] = useState(1);
   const [isRolling, setIsRolling] = useState(false);
+  const [showResetConfirm, setShowResetConfirm] = useState(false);
   const [lastMove, setLastMove] = useState<LastMove | null>(null);
   const [roomState, setRoomState] = useState<RoomState | null>(null);
   const [displayedPositions, setDisplayedPositions] = useState<Record<string, number>>({});
@@ -439,6 +440,7 @@ export default function Home() {
   };
 
   const resetGame = () => {
+    setShowResetConfirm(false);
     socketRef.current?.emit("game:reset", {}, (response: { ok: boolean; message?: string }) => {
       if (!response.ok) {
         const message = response.message ?? "Unable to reset game.";
@@ -529,13 +531,6 @@ export default function Home() {
             >
               {isRolling ? "Rolling..." : "Roll dice"}
             </button>
-            <button
-              className="rounded-xl bg-stone-900 px-4 py-2 font-medium text-white transition hover:bg-stone-700 disabled:cursor-not-allowed disabled:bg-stone-400"
-              onClick={resetGame}
-              disabled={!joinedRoom || isRolling}
-            >
-              Play again
-            </button>
           </div>
           <div className="mt-2 flex items-center gap-3 rounded-xl border border-stone-200 bg-stone-50 px-3 py-2">
             <span className="text-sm font-medium text-stone-700">Dice</span>
@@ -547,6 +542,35 @@ export default function Home() {
             >
               {diceFace}
             </motion.div>
+          </div>
+          <div className="rounded-xl border border-rose-200 bg-rose-50 p-3">
+            <p className="text-xs font-semibold uppercase tracking-wide text-rose-700">Danger Zone</p>
+            <p className="mt-1 text-xs text-rose-700/90">Resetting will restart this room from square 1 for everyone.</p>
+            {!showResetConfirm ? (
+              <button
+                className="mt-3 w-full rounded-xl border border-rose-300 bg-white px-4 py-2 text-sm font-medium text-rose-700 transition hover:bg-rose-100 disabled:cursor-not-allowed disabled:opacity-60"
+                onClick={() => setShowResetConfirm(true)}
+                disabled={!joinedRoom || isRolling}
+              >
+                Play again
+              </button>
+            ) : (
+              <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
+                <button
+                  className="rounded-xl bg-rose-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-rose-700 disabled:cursor-not-allowed disabled:opacity-60"
+                  onClick={resetGame}
+                  disabled={!joinedRoom || isRolling}
+                >
+                  Confirm reset
+                </button>
+                <button
+                  className="rounded-xl border border-stone-300 bg-white px-4 py-2 text-sm font-medium text-stone-700 transition hover:bg-stone-100"
+                  onClick={() => setShowResetConfirm(false)}
+                >
+                  Cancel
+                </button>
+              </div>
+            )}
           </div>
         </div>
 
