@@ -167,7 +167,7 @@ function readStoredValue(key: string) {
 export default function Home() {
   const socketRef = useRef<Socket | null>(null);
   const rollingTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const movementTimersRef = useRef<Record<string, ReturnType<typeof setTimeout>[]>>({});
+  const jumpTimerByPlayerRef = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
   const animatingPlayersRef = useRef<Record<string, boolean>>({});
   const autoJoinAttemptedRef = useRef(false);
   const roundNumberRef = useRef(0);
@@ -231,42 +231,11 @@ export default function Home() {
       if (rollingTimerRef.current) {
         clearInterval(rollingTimerRef.current);
       }
-      Object.values(movementTimersRef.current)
-        .flat()
-        .forEach((timer) => clearTimeout(timer));
-      movementTimersRef.current = {};
+      Object.values(jumpTimerByPlayerRef.current).forEach((timer) => clearTimeout(timer));
+      jumpTimerByPlayerRef.current = {};
       socket.disconnect();
       socketRef.current = null;
     };
-  }, []);
-
-  const clearPlayerMovementTimers = useCallback((playerName: string) => {
-    const timers = movementTimersRef.current[playerName];
-    if (!timers) {
-      return;
-    }
-    timers.forEach((timer) => clearTimeout(timer));
-    delete movementTimersRef.current[playerName];
-  }, []);
-
-  const buildStepPath = useCallback((startPosition: number, rawPosition: number, nextPosition: number) => {
-    const path: number[] = [];
-
-    if (rawPosition !== startPosition) {
-      const rawDirection = rawPosition > startPosition ? 1 : -1;
-      for (let position = startPosition + rawDirection; rawDirection > 0 ? position <= rawPosition : position >= rawPosition; position += rawDirection) {
-        path.push(position);
-      }
-    }
-
-    if (nextPosition !== rawPosition) {
-      const jumpDirection = nextPosition > rawPosition ? 1 : -1;
-      for (let position = rawPosition + jumpDirection; jumpDirection > 0 ? position <= nextPosition : position >= nextPosition; position += jumpDirection) {
-        path.push(position);
-      }
-    }
-
-    return path;
   }, []);
 
   const persistHistory = useCallback(
@@ -367,23 +336,22 @@ export default function Home() {
       setDiceFace(payload.dice);
       setLastRoll(`${payload.playerName} rolled ${payload.dice} and moved to ${payload.nextPosition}.`);
 
-      clearPlayerMovementTimers(payload.playerName);
       animatingPlayersRef.current[payload.playerName] = true;
-      const path = buildStepPath(payload.startPosition, payload.rawPosition, payload.nextPosition);
-      if (path.length === 0) {
-        setDisplayedPositions((previous) => ({ ...previous, [payload.playerName]: payload.nextPosition }));
-        animatingPlayersRef.current[payload.playerName] = false;
+      setDisplayedPositions((previous) => ({ ...previous, [payload.playerName]: payload.rawPosition }));
+
+      const existingJumpTimer = jumpTimerByPlayerRef.current[payload.playerName];
+      if (existingJumpTimer) {
+        clearTimeout(existingJumpTimer);
+      }
+
+      if (payload.jumpType && payload.rawPosition !== payload.nextPosition) {
+        jumpTimerByPlayerRef.current[payload.playerName] = setTimeout(() => {
+          setDisplayedPositions((previous) => ({ ...previous, [payload.playerName]: payload.nextPosition }));
+          animatingPlayersRef.current[payload.playerName] = false;
+          delete jumpTimerByPlayerRef.current[payload.playerName];
+        }, 520);
       } else {
-        const stepDelayMs = 120;
-        movementTimersRef.current[payload.playerName] = path.map((position, index) =>
-          setTimeout(() => {
-            setDisplayedPositions((previous) => ({ ...previous, [payload.playerName]: position }));
-            if (index === path.length - 1) {
-              animatingPlayersRef.current[payload.playerName] = false;
-              delete movementTimersRef.current[payload.playerName];
-            }
-          }, stepDelayMs * (index + 1))
-        );
+        animatingPlayersRef.current[payload.playerName] = false;
       }
 
       setLastMove({
@@ -403,7 +371,7 @@ export default function Home() {
       socketRef.current?.off(stateEvent, handleState);
       socketRef.current?.off(currentDiceEvent, handleDice);
     };
-  }, [buildStepPath, clearPlayerMovementTimers, currentPlayerName, joinedRoom, persistHistory]);
+  }, [currentPlayerName, joinedRoom, persistHistory]);
 
   const joinRoom = useCallback(
     (options?: { silentError?: boolean; isReconnect?: boolean }) => {
@@ -545,12 +513,11 @@ export default function Home() {
         return;
       }
 
-      setLastMove(null);
-      setLastRoll("No rolls yet.");
-      setMoveLog([]);
-      roundNumberRef.current += 1;
-      Object.keys(movementTimersRef.current).forEach((player) => clearPlayerMovementTimers(player));
-      setDisplayedPositions((previous) => {
+        setLastMove(null);
+        setLastRoll("No rolls yet.");
+        setMoveLog([]);
+        roundNumberRef.current += 1;
+        setDisplayedPositions((previous) => {
         const resetPositions: Record<string, number> = {};
         Object.keys(previous).forEach((player) => {
           resetPositions[player] = 1;
