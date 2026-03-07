@@ -7,3 +7,6 @@
 **/.env.*.local
 !**/.env.example
 web/.git_backup/
+
+web/.git_backup/
+.git_monorepo_tmp/
