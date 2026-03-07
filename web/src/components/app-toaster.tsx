@@ -14,5 +14,14 @@ export default function AppToaster() {
     return () => media.removeEventListener("change", update);
   }, []);
 
-  return <Toaster richColors position={mobile ? "top-center" : "top-right"} />;
+  return (
+    <Toaster
+      richColors
+      position={mobile ? "top-center" : "top-right"}
+      mobileOffset={{ top: 12, left: 8, right: 8 }}
+      toastOptions={{
+        className: mobile ? "!w-[calc(100vw-16px)] !max-w-[420px]" : undefined
+      }}
+    />
+  );
 }

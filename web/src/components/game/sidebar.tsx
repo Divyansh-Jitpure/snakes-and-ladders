@@ -43,8 +43,8 @@ export default function Sidebar({
   currentPlayerName
 }: SidebarProps) {
   return (
-    <aside className="space-y-4">
-      <section className="rounded-2xl border border-[#4f2b19] bg-[linear-gradient(180deg,#2f1a12_0%,#1b0f0b_100%)] p-4 shadow-xl">
+    <aside className="flex flex-col gap-4">
+      <section className="order-2 rounded-2xl border border-[#4f2b19] bg-[linear-gradient(180deg,#2f1a12_0%,#1b0f0b_100%)] p-4 shadow-xl lg:order-1">
         <p className="text-xs font-semibold uppercase tracking-wide text-amber-200/70">Connection</p>
         <p className={`mt-1 text-lg font-bold ${connected ? "text-emerald-300" : "text-rose-300"}`}>
           {connected ? "Connected" : "Disconnected"}
@@ -52,7 +52,7 @@ export default function Sidebar({
         <p className="mt-2 text-xs text-amber-100/60">{turnMessage}</p>
       </section>
 
-      <section className="space-y-4 rounded-2xl border border-[#4f2b19] bg-[linear-gradient(180deg,#2f1a12_0%,#1b0f0b_100%)] p-4 shadow-xl">
+      <section className="order-1 space-y-4 rounded-2xl border border-[#4f2b19] bg-[linear-gradient(180deg,#2f1a12_0%,#1b0f0b_100%)] p-4 shadow-xl lg:order-2">
         <h2 className="text-lg font-bold text-amber-100">Control Panel</h2>
         <p className="rounded-xl border border-amber-900/50 bg-[#3b2116] px-4 py-2 text-sm font-semibold text-amber-100">
           Room: {roomCode}
@@ -123,7 +123,7 @@ export default function Sidebar({
         </div>
       </section>
 
-      <section className="rounded-2xl border border-[#4f2b19] bg-[linear-gradient(180deg,#2f1a12_0%,#1b0f0b_100%)] p-4 shadow-xl">
+      <section className="order-3 rounded-2xl border border-[#4f2b19] bg-[linear-gradient(180deg,#2f1a12_0%,#1b0f0b_100%)] p-4 shadow-xl">
         <h2 className="text-lg font-bold text-amber-100">Players</h2>
         <p className="mt-1 text-xs text-amber-100/70">Room: {joinedRoom ?? "None"}</p>
         <p className="mt-1 text-xs text-amber-100/70">You: {currentPlayerName ?? "Not joined"}</p>

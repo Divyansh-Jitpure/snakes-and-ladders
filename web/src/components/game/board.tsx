@@ -92,8 +92,7 @@ export default function Board({ displayedPositions, roomState, lastMove }: Board
   const activeSnakeTarget = lastMove?.jumpType === "snake" ? lastMove.endPosition : null;
 
   return (
-    <article className="rounded-3xl border border-amber-700/50 bg-[linear-gradient(180deg,#5d2a11_0%,#281005_100%)] p-3 shadow-2xl">
-      <div className="rounded-2xl border border-amber-500/30 bg-[linear-gradient(180deg,#7a3212_0%,#3c1a0c_100%)] p-3">
+      <article className="rounded-2xl border border-amber-500/30 bg-[linear-gradient(180deg,#7a3212_0%,#3c1a0c_100%)] p-3">
         <div className="mb-3 flex flex-wrap items-center justify-between gap-2 px-1">
           <p className="text-sm font-semibold uppercase tracking-wide text-amber-100">Game Board</p>
           <div className="flex items-center gap-2">
@@ -127,7 +126,7 @@ export default function Board({ displayedPositions, roomState, lastMove }: Board
             })}
           </div>
 
-          <svg viewBox="0 0 100 100" preserveAspectRatio="none" className="pointer-events-none absolute inset-0 z-[1]">
+          <svg viewBox="0 0 100 100" preserveAspectRatio="none" className="pointer-events-none absolute inset-0 z-1">
             {jumps
               .filter((jump) => jump.type === "snake")
               .map((jump, index) => {
@@ -233,7 +232,6 @@ export default function Board({ displayedPositions, roomState, lastMove }: Board
             </span>
           )}
         </div>
-      </div>
-    </article>
+      </article>
   );
 }

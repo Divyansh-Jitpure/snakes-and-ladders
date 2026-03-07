@@ -54,6 +54,7 @@ export default function PlayScreen({ initialRoomCode, mode, initialPlayerName = 
   const [roomState, setRoomState] = useState<RoomState | null>(null);
   const [displayedPositions, setDisplayedPositions] = useState<Record<string, number>>({});
   const [moveLog, setMoveLog] = useState<MoveLogEntry[]>([]);
+  const [isMobile, setIsMobile] = useState(false);
   const isAuthenticated = sessionStatus === "authenticated" && Boolean(session?.user);
   const sessionPlayerName = (session?.user?.name ?? "").trim();
   const effectivePlayerName = playerName.trim() || sessionPlayerName;
@@ -82,6 +83,14 @@ export default function PlayScreen({ initialRoomCode, mode, initialPlayerName = 
     }
     return activeTurn === currentPlayerName ? "Your turn." : `Waiting for ${activeTurn}.`;
   }, [activeTurn, currentPlayerName, roomState]);
+
+  useEffect(() => {
+    const media = window.matchMedia("(max-width: 640px)");
+    const update = () => setIsMobile(media.matches);
+    update();
+    media.addEventListener("change", update);
+    return () => media.removeEventListener("change", update);
+  }, []);
 
   useEffect(() => {
     if (!isAuthenticated) {
@@ -408,7 +417,9 @@ export default function PlayScreen({ initialRoomCode, mode, initialPlayerName = 
         return;
       }
 
-      toast.info("Dice rolled.");
+      if (!isMobile) {
+        toast.info("Dice rolled.");
+      }
     });
   };
 
