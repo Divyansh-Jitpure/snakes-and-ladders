@@ -5,11 +5,11 @@ import { notFound } from "next/navigation";
 export const dynamic = "force-dynamic";
 
 type Props = {
-  params: Promise<{ id: string }>;
+  params: { id: string };
 };
 
 export default async function HistoryDetailPage({ params }: Props) {
-  const { id } = await params;
+  const { id } = params;
   const match = await prisma.gameHistory.findUnique({
     where: { id },
     include: { moves: { orderBy: { createdAt: "asc" } } }
