@@ -33,6 +33,7 @@ type DicePayload = {
   playerName: string;
   dice: number;
   startPosition: number;
+  rawPosition: number;
   nextPosition: number;
   jumpType: JumpType | null;
 };
@@ -156,6 +157,8 @@ function readStoredValue(key: string) {
 export default function Home() {
   const socketRef = useRef<Socket | null>(null);
   const rollingTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const jumpTimerByPlayerRef = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
+  const animatingPlayersRef = useRef<Record<string, boolean>>({});
   const autoJoinAttemptedRef = useRef(false);
 
   const [connected, setConnected] = useState(false);
@@ -169,6 +172,7 @@ export default function Home() {
   const [isRolling, setIsRolling] = useState(false);
   const [lastMove, setLastMove] = useState<LastMove | null>(null);
   const [roomState, setRoomState] = useState<RoomState | null>(null);
+  const [displayedPositions, setDisplayedPositions] = useState<Record<string, number>>({});
 
   const jumpMap = useMemo(() => new Map(jumps.map((jump) => [jump.from, jump])), []);
 
@@ -215,6 +219,8 @@ export default function Home() {
       if (rollingTimerRef.current) {
         clearInterval(rollingTimerRef.current);
       }
+      Object.values(jumpTimerByPlayerRef.current).forEach((timer) => clearTimeout(timer));
+      jumpTimerByPlayerRef.current = {};
       socket.disconnect();
       socketRef.current = null;
     };
@@ -246,6 +252,18 @@ export default function Home() {
         setStatus(message);
         toast.success(message);
       }
+
+      setDisplayedPositions((previous) => {
+        const next: Record<string, number> = {};
+        incomingState.players.forEach((player) => {
+          if (animatingPlayersRef.current[player]) {
+            next[player] = previous[player] ?? incomingState.positions[player] ?? 1;
+          } else {
+            next[player] = incomingState.positions[player] ?? 1;
+          }
+        });
+        return next;
+      });
     };
 
     const handleDice = (payload: DicePayload) => {
@@ -257,6 +275,25 @@ export default function Home() {
       setIsRolling(false);
       setDiceFace(payload.dice);
       setLastRoll(`${payload.playerName} rolled ${payload.dice} and moved to ${payload.nextPosition}.`);
+
+      animatingPlayersRef.current[payload.playerName] = true;
+      setDisplayedPositions((previous) => ({ ...previous, [payload.playerName]: payload.rawPosition }));
+
+      const existingJumpTimer = jumpTimerByPlayerRef.current[payload.playerName];
+      if (existingJumpTimer) {
+        clearTimeout(existingJumpTimer);
+      }
+
+      if (payload.jumpType && payload.rawPosition !== payload.nextPosition) {
+        jumpTimerByPlayerRef.current[payload.playerName] = setTimeout(() => {
+          setDisplayedPositions((previous) => ({ ...previous, [payload.playerName]: payload.nextPosition }));
+          animatingPlayersRef.current[payload.playerName] = false;
+          delete jumpTimerByPlayerRef.current[payload.playerName];
+        }, 520);
+      } else {
+        animatingPlayersRef.current[payload.playerName] = false;
+      }
+
       setLastMove({
         playerName: payload.playerName,
         startPosition: payload.startPosition,
@@ -412,6 +449,14 @@ export default function Home() {
 
       setLastMove(null);
       setLastRoll("No rolls yet.");
+      setDisplayedPositions((previous) => {
+        const resetPositions: Record<string, number> = {};
+        Object.keys(previous).forEach((player) => {
+          resetPositions[player] = 1;
+          animatingPlayersRef.current[player] = false;
+        });
+        return resetPositions;
+      });
       setStatus("Game reset. Starting from square 1.");
       toast.success("Game reset. Play again.");
     });
@@ -577,7 +622,7 @@ export default function Home() {
               </svg>
 
               {roomState?.players.map((player, index) => {
-                const position = roomState.positions[player] ?? 1;
+                const position = displayedPositions[player] ?? roomState.positions[player] ?? 1;
                 const point = positionToBoardPoint(position);
                 const slot = tokenSlots[index % tokenSlots.length];
                 const isLastMover = player === lastMove?.playerName;
