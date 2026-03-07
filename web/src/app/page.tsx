@@ -6,6 +6,7 @@ import {
   identityRoomKey,
   readStoredValue
 } from "@/components/game/identity";
+import InstallAppButton from "@/components/install-app-button";
 import { motion } from "framer-motion";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -90,12 +91,15 @@ export default function Home() {
           <p className="rounded-full border border-amber-300/40 bg-black/25 px-3 py-1 text-xs uppercase tracking-[0.2em] text-amber-100">
             Game Menu
           </p>
-          <Link
-            href="/history"
-            className="inline-flex rounded-xl border border-amber-200/50 bg-amber-100/10 px-4 py-2 text-sm font-semibold text-amber-50 transition hover:bg-amber-100/20"
-          >
-            Match History
-          </Link>
+          <div className="flex items-center gap-2">
+            <InstallAppButton />
+            <Link
+              href="/history"
+              className="inline-flex rounded-xl border border-amber-200/50 bg-amber-100/10 px-4 py-2 text-sm font-semibold text-amber-50 transition hover:bg-amber-100/20"
+            >
+              Match History
+            </Link>
+          </div>
         </div>
         <h1 className="mt-4 text-4xl font-black tracking-tight text-amber-100 sm:text-6xl">Snakes and Ladders</h1>
         <p className="mt-2 max-w-2xl text-sm text-amber-100/90 sm:text-base">
