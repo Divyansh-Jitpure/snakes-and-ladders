@@ -1,6 +1,7 @@
 "use client";
 
 import { motion } from "framer-motion";
+import Link from "next/link";
 import { toast } from "sonner";
 import { io, type Socket } from "socket.io-client";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -30,6 +31,15 @@ type LastMove = {
 };
 
 type DicePayload = {
+  playerName: string;
+  dice: number;
+  startPosition: number;
+  rawPosition: number;
+  nextPosition: number;
+  jumpType: JumpType | null;
+};
+
+type MoveLogEntry = {
   playerName: string;
   dice: number;
   startPosition: number;
@@ -160,6 +170,8 @@ export default function Home() {
   const jumpTimerByPlayerRef = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
   const animatingPlayersRef = useRef<Record<string, boolean>>({});
   const autoJoinAttemptedRef = useRef(false);
+  const roundNumberRef = useRef(0);
+  const savedRoundKeysRef = useRef<Record<string, boolean>>({});
 
   const [connected, setConnected] = useState(false);
   const [playerName, setPlayerName] = useState(() => readStoredValue(identityNameKey));
@@ -174,6 +186,7 @@ export default function Home() {
   const [lastMove, setLastMove] = useState<LastMove | null>(null);
   const [roomState, setRoomState] = useState<RoomState | null>(null);
   const [displayedPositions, setDisplayedPositions] = useState<Record<string, number>>({});
+  const [moveLog, setMoveLog] = useState<MoveLogEntry[]>([]);
 
   const jumpMap = useMemo(() => new Map(jumps.map((jump) => [jump.from, jump])), []);
 
@@ -227,6 +240,37 @@ export default function Home() {
     };
   }, []);
 
+  const persistHistory = useCallback(
+    async (winnerName: string, players: string[]) => {
+      if (!joinedRoom || moveLog.length === 0) {
+        return;
+      }
+
+      const roundKey = `${joinedRoom}#${roundNumberRef.current}`;
+      if (savedRoundKeysRef.current[roundKey]) {
+        return;
+      }
+      savedRoundKeysRef.current[roundKey] = true;
+
+      const response = await fetch("/api/history", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          roomCode: joinedRoom,
+          winnerName,
+          playerNames: players,
+          moves: moveLog
+        })
+      });
+
+      if (!response.ok) {
+        savedRoundKeysRef.current[roundKey] = false;
+        throw new Error("Unable to save match history.");
+      }
+    },
+    [joinedRoom, moveLog]
+  );
+
   useEffect(() => {
     if (!joinedRoom || !socketRef.current) {
       return;
@@ -252,6 +296,16 @@ export default function Home() {
         const message = `${incomingState.winner} won the match.`;
         setStatus(message);
         toast.success(message);
+
+        if (currentPlayerName === incomingState.winner) {
+          persistHistory(incomingState.winner, incomingState.players)
+            .then(() => {
+              toast.success("Match saved to history.");
+            })
+            .catch(() => {
+              toast.error("Could not save this match to history.");
+            });
+        }
       }
 
       setDisplayedPositions((previous) => {
@@ -302,6 +356,7 @@ export default function Home() {
         jumpType: payload.jumpType,
         dice: payload.dice
       });
+      setMoveLog((previous) => [...previous, payload]);
     };
 
     socketRef.current.on(stateEvent, handleState);
@@ -311,7 +366,7 @@ export default function Home() {
       socketRef.current?.off(stateEvent, handleState);
       socketRef.current?.off(currentDiceEvent, handleDice);
     };
-  }, [joinedRoom]);
+  }, [currentPlayerName, joinedRoom, persistHistory]);
 
   const joinRoom = useCallback(
     (options?: { silentError?: boolean; isReconnect?: boolean }) => {
@@ -344,6 +399,8 @@ export default function Home() {
         setJoinedRoom(cleanRoom);
         setCurrentPlayerName(cleanName);
         persistIdentity(cleanName, cleanRoom);
+        roundNumberRef.current = 0;
+        setMoveLog([]);
 
         const message = options?.isReconnect
           ? `Reconnected as ${cleanName} in room ${cleanRoom}.`
@@ -402,6 +459,8 @@ export default function Home() {
         setCurrentPlayerName(cleanName);
         autoJoinAttemptedRef.current = true;
         persistIdentity(cleanName, cleanRoom);
+        roundNumberRef.current = 0;
+        setMoveLog([]);
 
         const message = `Room ${cleanRoom} created. Share this code with friends.`;
         setStatus(message);
@@ -449,9 +508,11 @@ export default function Home() {
         return;
       }
 
-      setLastMove(null);
-      setLastRoll("No rolls yet.");
-      setDisplayedPositions((previous) => {
+        setLastMove(null);
+        setLastRoll("No rolls yet.");
+        setMoveLog([]);
+        roundNumberRef.current += 1;
+        setDisplayedPositions((previous) => {
         const resetPositions: Record<string, number> = {};
         Object.keys(previous).forEach((player) => {
           resetPositions[player] = 1;
@@ -477,6 +538,14 @@ export default function Home() {
         <p className="mt-3 max-w-2xl text-sm text-amber-100 md:text-base">
           Create or join a room, roll in turn, and continue the same player session even after page refresh.
         </p>
+        <div className="mt-4">
+          <Link
+            href="/history"
+            className="inline-flex rounded-xl border border-amber-100/60 bg-amber-50/20 px-4 py-2 text-sm font-medium text-white transition hover:bg-amber-50/30"
+          >
+            View match history
+          </Link>
+        </div>
       </motion.section>
 
       <section className="grid gap-5 md:grid-cols-2">

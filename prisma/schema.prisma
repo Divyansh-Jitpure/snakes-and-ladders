@@ -59,7 +59,40 @@ model Move {
   @@index([matchId, createdAt])
 }
 
+model GameHistory {
+  id         String     @id @default(cuid())
+  roomCode   String
+  winnerName String
+  playerNames Json
+  createdAt  DateTime   @default(now())
+  moves      GameMove[]
+
+  @@index([createdAt])
+  @@index([winnerName])
+}
+
+model GameMove {
+  id            String       @id @default(cuid())
+  historyId     String
+  playerName    String
+  diceRoll      Int
+  startPosition Int
+  rawPosition   Int
+  endPosition   Int
+  jumpType      MoveJumpType?
+  createdAt     DateTime     @default(now())
+
+  history GameHistory @relation(fields: [historyId], references: [id], onDelete: Cascade)
+
+  @@index([historyId, createdAt])
+}
+
 enum MatchStatus {
   IN_PROGRESS
   FINISHED
+}
+
+enum MoveJumpType {
+  SNAKE
+  LADDER
 }
