@@ -1,8 +1,8 @@
 @import "tailwindcss";
 
 :root {
-  --background: #fff8ef;
-  --foreground: #1c1917;
+  --background: #140b08;
+  --foreground: #fef3c7;
 }
 
 @theme inline {
@@ -14,8 +14,9 @@
 
 body {
   background:
-    radial-gradient(circle at top right, #fcd34d66, transparent 45%),
-    radial-gradient(circle at bottom left, #fb923c44, transparent 40%),
+    radial-gradient(circle at 20% 0%, #7c2d1255, transparent 38%),
+    radial-gradient(circle at 90% 10%, #451a0366, transparent 45%),
+    linear-gradient(180deg, #1b0d08 0%, #0f0705 100%),
     var(--background);
   color: var(--foreground);
   font-family: "Trebuchet MS", "Gill Sans", "Segoe UI", sans-serif;

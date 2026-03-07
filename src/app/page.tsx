@@ -531,129 +531,45 @@ export default function Home() {
   };
 
   return (
-    <main className="mx-auto flex min-h-screen max-w-6xl flex-col gap-6 px-3 py-5 sm:px-4 sm:py-8 md:gap-8 md:px-8">
+    <main className="mx-auto flex min-h-screen max-w-7xl flex-col gap-6 px-3 py-5 text-amber-50 sm:px-4 sm:py-8 md:gap-8 md:px-8">
       <motion.section
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.45 }}
-        className="rounded-3xl border border-amber-200/70 bg-[radial-gradient(circle_at_15%_15%,#fef3c7_0,#f97316_34%,#7c2d12_100%)] p-5 text-white shadow-2xl sm:p-8"
+        className="rounded-3xl border border-amber-700/60 bg-[linear-gradient(160deg,#3f1d0a_0%,#8a3f16_38%,#281205_100%)] p-5 shadow-[0_20px_50px_rgba(0,0,0,0.45)] sm:p-8"
       >
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <p className="rounded-full border border-amber-100/50 bg-black/10 px-3 py-1 text-xs uppercase tracking-[0.2em] text-amber-100">
-            Online Multiplayer
+          <p className="rounded-full border border-amber-300/40 bg-black/25 px-3 py-1 text-xs uppercase tracking-[0.2em] text-amber-100">
+            Adventure Match
           </p>
           <Link
             href="/history"
-            className="inline-flex rounded-xl border border-amber-100/60 bg-amber-50/15 px-4 py-2 text-sm font-medium text-white transition hover:bg-amber-50/30"
+            className="inline-flex rounded-xl border border-amber-200/50 bg-amber-100/10 px-4 py-2 text-sm font-semibold text-amber-50 transition hover:bg-amber-100/20"
           >
-            View match history
+            Match History
           </Link>
         </div>
-        <h1 className="mt-4 text-3xl font-semibold sm:text-4xl md:text-5xl">Snakes and Ladders</h1>
-        <p className="mt-3 max-w-2xl text-sm text-amber-50 md:text-base">
-          Create or join a room, roll in turn, and continue the same player session even after page refresh.
+        <h1 className="mt-4 text-4xl font-black tracking-tight text-amber-100 sm:text-5xl">Snakes and Ladders</h1>
+        <p className="mt-2 max-w-2xl text-sm text-amber-100/90 md:text-base">
+          Roll the dice, climb ladders, dodge snakes, and finish first in this online board duel.
         </p>
       </motion.section>
 
-      <section className="grid gap-4 md:grid-cols-[0.9fr_1.1fr]">
-        <div className="rounded-2xl border border-stone-200 bg-white p-4 shadow-sm">
-          <p className="text-xs font-semibold uppercase tracking-wide text-stone-500">Connection</p>
-          <p className={`mt-1 text-lg font-semibold ${connected ? "text-emerald-600" : "text-red-600"}`}>
-            {connected ? "Connected" : "Disconnected"}
-          </p>
-          <p className="mt-2 truncate text-xs text-stone-500">{realtimeUrl}</p>
-        </div>
-
-        <div className="rounded-2xl border border-stone-200 bg-white p-4 shadow-sm">
-          <p className="text-xs font-semibold uppercase tracking-wide text-stone-500">Live Status</p>
-          <p className="mt-1 text-sm text-stone-700">{status}</p>
-          <p className="mt-1 text-sm text-stone-600">{lastRoll}</p>
-          <p className="mt-1 text-sm font-medium text-stone-800">{turnMessage}</p>
-        </div>
-      </section>
-
-      <section className="grid gap-8 rounded-3xl border border-stone-200 bg-white/90 p-4 shadow-sm sm:p-6 md:grid-cols-[0.95fr_1.05fr]">
-        <div className="space-y-4">
-          <h2 className="text-xl font-semibold text-stone-900">Lobby</h2>
-          <input
-            className="w-full rounded-xl border border-stone-300 bg-stone-50 px-4 py-2 outline-none transition focus:border-orange-400 focus:bg-white"
-            placeholder="Player name"
-            value={playerName}
-            onChange={(event) => setPlayerName(event.target.value)}
-          />
-          <input
-            className="w-full rounded-xl border border-stone-300 bg-stone-50 px-4 py-2 uppercase outline-none transition focus:border-orange-400 focus:bg-white"
-            placeholder="Room code (example: ROOM1)"
-            value={roomCode}
-            onChange={(event) => setRoomCode(event.target.value)}
-          />
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            <button
-              className="rounded-xl bg-orange-500 px-4 py-2 font-semibold text-white transition hover:bg-orange-600"
-              onClick={createRoom}
-            >
-              Create room
-            </button>
-            <button
-              className="rounded-xl border border-stone-300 bg-white px-4 py-2 font-semibold text-stone-700 transition hover:bg-stone-100"
-              onClick={() => joinRoom()}
-            >
-              Join room
-            </button>
-            <button
-              className="rounded-xl bg-emerald-600 px-4 py-2 font-semibold text-white transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:bg-emerald-300"
-              onClick={rollDice}
-              disabled={!canRoll}
-            >
-              {isRolling ? "Rolling..." : "Roll dice"}
-            </button>
-          </div>
-          <div className="mt-2 flex items-center gap-3 rounded-xl border border-stone-200 bg-stone-50 px-3 py-2 shadow-inner">
-            <span className="text-sm font-medium text-stone-700">Dice</span>
-            <motion.div
-              key={diceFace}
-              animate={isRolling ? { rotate: 360 } : { rotate: 0 }}
-              transition={isRolling ? { repeat: Infinity, duration: 0.35, ease: "linear" } : { duration: 0.2 }}
-              className="flex h-10 w-10 items-center justify-center rounded-lg border border-stone-300 bg-white text-lg font-semibold text-stone-800"
-            >
-              {diceFace}
-            </motion.div>
-          </div>
-          <div className="rounded-xl border border-rose-200 bg-rose-50 p-3">
-            <p className="text-xs font-semibold uppercase tracking-wide text-rose-700">Danger Zone</p>
-            <p className="mt-1 text-xs text-rose-700/90">Resetting will restart this room from square 1 for everyone.</p>
-            {!showResetConfirm ? (
-              <button
-                className="mt-3 w-full rounded-xl border border-rose-300 bg-white px-4 py-2 text-sm font-medium text-rose-700 transition hover:bg-rose-100 disabled:cursor-not-allowed disabled:opacity-60"
-                onClick={() => setShowResetConfirm(true)}
-                disabled={!joinedRoom || isRolling}
-              >
-                Play again
-              </button>
-            ) : (
-              <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
-                <button
-                  className="rounded-xl bg-rose-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-rose-700 disabled:cursor-not-allowed disabled:opacity-60"
-                  onClick={resetGame}
-                  disabled={!joinedRoom || isRolling}
-                >
-                  Confirm reset
-                </button>
-                <button
-                  className="rounded-xl border border-stone-300 bg-white px-4 py-2 text-sm font-medium text-stone-700 transition hover:bg-stone-100"
-                  onClick={() => setShowResetConfirm(false)}
-                >
-                  Cancel
-                </button>
+      <section className="grid gap-6 lg:grid-cols-[1.35fr_0.9fr]">
+        <article className="rounded-3xl border border-amber-700/50 bg-[linear-gradient(180deg,#5d2a11_0%,#281005_100%)] p-3 shadow-2xl">
+          <div className="rounded-2xl border border-amber-500/30 bg-[linear-gradient(180deg,#7a3212_0%,#3c1a0c_100%)] p-3">
+            <div className="mb-3 flex flex-wrap items-center justify-between gap-2 px-1">
+              <p className="text-sm font-semibold uppercase tracking-wide text-amber-100">Game Board</p>
+              <div className="flex items-center gap-2">
+                <span className="rounded-full bg-emerald-300/20 px-2 py-0.5 text-[11px] font-semibold text-emerald-200">
+                  Ladders
+                </span>
+                <span className="rounded-full bg-rose-300/20 px-2 py-0.5 text-[11px] font-semibold text-rose-200">
+                  Snakes
+                </span>
               </div>
-            )}
-          </div>
-        </div>
-
-        <div className="space-y-4">
-          <h2 className="text-xl font-semibold text-stone-900">Board</h2>
-          <div className="rounded-2xl border border-stone-200 bg-gradient-to-b from-stone-100 to-stone-50 p-2">
-            <div className="relative aspect-square overflow-hidden rounded-xl border border-stone-300 bg-white">
+            </div>
+            <div className="relative aspect-square overflow-hidden rounded-xl border border-amber-400/40 bg-[#1f1008]">
               <div className="grid h-full w-full grid-cols-10 grid-rows-10">
                 {Array.from({ length: 100 }).map((_, index) => {
                   const visualRow = Math.floor(index / boardSize);
@@ -666,17 +582,17 @@ export default function Home() {
                   return (
                     <div
                       key={number}
-                      className={`relative border border-stone-200 p-0.5 text-[8px] sm:p-1 sm:text-[10px] md:text-xs ${
-                        isLightCell ? "bg-amber-50" : "bg-emerald-50"
-                      } ${isMoveEndpoint ? "ring-2 ring-orange-400 ring-inset" : ""}`}
+                      className={`relative border border-amber-900/60 p-0.5 text-[8px] sm:p-1 sm:text-[10px] md:text-xs ${
+                        isLightCell ? "bg-[#9b4a21]" : "bg-[#6f3417]"
+                      } ${isMoveEndpoint ? "ring-2 ring-yellow-300 ring-inset" : ""}`}
                     >
-                      <span className={`font-semibold ${isMoveEndpoint ? "text-orange-700" : "text-stone-600"}`}>
+                      <span className={`font-bold ${isMoveEndpoint ? "text-yellow-200" : "text-amber-100"}`}>
                         {number}
                       </span>
                       {jump && (
                         <span
                           className={`absolute right-0.5 bottom-0.5 rounded px-1 py-0.5 text-[8px] font-semibold text-white sm:right-1 sm:bottom-1 sm:text-[9px] ${
-                            jump.type === "ladder" ? "bg-emerald-500" : "bg-rose-500"
+                            jump.type === "ladder" ? "bg-emerald-600" : "bg-rose-600"
                           }`}
                         >
                           {jump.type === "ladder" ? "L" : "S"}:{jump.to}
@@ -699,8 +615,8 @@ export default function Home() {
                       key={`snake-${jump.from}-${jump.to}`}
                       d={snakePath(jump, index)}
                       fill="none"
-                      stroke="#dc2626"
-                      strokeWidth="1.4"
+                      stroke="#9ef01a"
+                      strokeWidth="1.8"
                       strokeLinecap="round"
                     />
                   ))}
@@ -710,7 +626,7 @@ export default function Home() {
                   .map((jump) => {
                     const { railA, railB, rungs } = ladderSegments(jump);
                     return (
-                      <g key={`ladder-${jump.from}-${jump.to}`} stroke="#047857" strokeWidth="0.7" strokeLinecap="round">
+                      <g key={`ladder-${jump.from}-${jump.to}`} stroke="#fde047" strokeWidth="0.8" strokeLinecap="round">
                         <line {...railA} />
                         <line {...railB} />
                         {rungs.map((rung, rungIndex) => (
@@ -730,7 +646,7 @@ export default function Home() {
                 return (
                   <motion.div
                     key={player}
-                    className="absolute z-10 h-4 w-4 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white shadow sm:h-5 sm:w-5"
+                    className="absolute z-10 h-4 w-4 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white shadow-[0_0_8px_rgba(255,255,255,0.65)] sm:h-5 sm:w-5"
                     style={{ backgroundColor: tokenColors[index % tokenColors.length] }}
                     animate={{
                       left: `${point.left + slot.x}%`,
@@ -743,51 +659,146 @@ export default function Home() {
                 );
               })}
             </div>
-          </div>
-          <div className="flex flex-wrap gap-2 text-xs text-stone-600">
-            <span className="rounded-full bg-emerald-100 px-2 py-1 font-medium">L = Ladder</span>
-            <span className="rounded-full bg-rose-100 px-2 py-1 font-medium">S = Snake</span>
-            {lastMove && (
-              <span className="rounded-full bg-orange-100 px-2 py-1 font-medium text-orange-800">
+            <div className="mt-3 flex flex-wrap gap-2 text-xs text-amber-100/90">
+              <span className="rounded-full bg-emerald-700/50 px-2 py-1 font-medium">L = Ladder</span>
+              <span className="rounded-full bg-rose-700/50 px-2 py-1 font-medium">S = Snake</span>
+              {lastMove && (
+                <span className="rounded-full bg-amber-700/50 px-2 py-1 font-medium text-amber-50">
                 {lastMove.playerName}: {lastMove.startPosition} to {lastMove.endPosition}
                 {lastMove.jumpType ? ` (${lastMove.jumpType})` : ""}
                 {lastMove.dice ? `, dice ${lastMove.dice}` : ""}
-              </span>
-            )}
+                </span>
+              )}
+            </div>
           </div>
-        </div>
-      </section>
+        </article>
 
-      <section className="rounded-3xl border border-stone-200 bg-white/90 p-4 shadow-sm sm:p-6">
-        <h2 className="text-xl font-semibold text-stone-900">Live Room State</h2>
-        <p className="text-sm text-stone-600">Joined room: {joinedRoom ?? "None"}</p>
-        <p className="text-sm text-stone-600">Current turn: {activeTurn ?? "N/A"}</p>
-        <p className="text-sm text-stone-600">You are: {currentPlayerName ?? "Not joined"}</p>
-        <p className="text-sm font-semibold text-stone-700">Winner: {roomState?.winner ?? "No winner yet"}</p>
-        <div className="mt-4 space-y-2">
-          {roomState?.players.map((player, index) => {
-            const online = roomState.online[player] ?? false;
-            return (
-              <div
-                key={player}
-                className="flex items-center justify-between rounded-xl border border-stone-200 px-3 py-2"
+        <aside className="space-y-4">
+          <section className="rounded-2xl border border-[#4f2b19] bg-[linear-gradient(180deg,#2f1a12_0%,#1b0f0b_100%)] p-4 shadow-xl">
+            <p className="text-xs font-semibold uppercase tracking-wide text-amber-200/70">Connection</p>
+            <p className={`mt-1 text-lg font-bold ${connected ? "text-emerald-300" : "text-rose-300"}`}>
+              {connected ? "Connected" : "Disconnected"}
+            </p>
+            <p className="mt-2 text-xs text-amber-100/60">{turnMessage}</p>
+          </section>
+
+          <section className="space-y-4 rounded-2xl border border-[#4f2b19] bg-[linear-gradient(180deg,#2f1a12_0%,#1b0f0b_100%)] p-4 shadow-xl">
+            <h2 className="text-lg font-bold text-amber-100">Control Panel</h2>
+            <input
+              className="w-full rounded-xl border border-amber-900/50 bg-[#3b2116] px-4 py-2 text-amber-50 outline-none transition focus:border-amber-500"
+              placeholder="Player name"
+              value={playerName}
+              onChange={(event) => setPlayerName(event.target.value)}
+            />
+            <input
+              className="w-full rounded-xl border border-amber-900/50 bg-[#3b2116] px-4 py-2 uppercase text-amber-50 outline-none transition focus:border-amber-500"
+              placeholder="Room code"
+              value={roomCode}
+              onChange={(event) => setRoomCode(event.target.value)}
+            />
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+              <button
+                className="rounded-xl bg-amber-600 px-4 py-2 font-semibold text-stone-950 transition hover:bg-amber-500"
+                onClick={createRoom}
               >
-                <div className="flex items-center gap-2">
-                  <span
-                    className="inline-block h-3 w-3 rounded-full"
-                    style={{ backgroundColor: tokenColors[index % tokenColors.length] }}
-                  />
-                  <span className="font-medium text-stone-800">{player}</span>
-                  <span className={`text-xs font-medium ${online ? "text-emerald-600" : "text-stone-400"}`}>
-                    {online ? "Online" : "Offline"}
-                  </span>
+                Create
+              </button>
+              <button
+                className="rounded-xl border border-amber-700 bg-[#2c1710] px-4 py-2 font-semibold text-amber-100 transition hover:bg-[#3d2117]"
+                onClick={() => joinRoom()}
+              >
+                Join
+              </button>
+              <button
+                className="rounded-xl bg-emerald-600 px-4 py-2 font-semibold text-white transition hover:bg-emerald-500 disabled:cursor-not-allowed disabled:bg-emerald-900"
+                onClick={rollDice}
+                disabled={!canRoll}
+              >
+                {isRolling ? "Rolling..." : "Roll"}
+              </button>
+            </div>
+
+            <div className="flex items-center gap-3 rounded-xl border border-amber-900/50 bg-[#3b2116] px-3 py-2">
+              <span className="text-sm font-semibold text-amber-100">Dice</span>
+              <motion.div
+                key={diceFace}
+                animate={isRolling ? { rotate: 360 } : { rotate: 0 }}
+                transition={isRolling ? { repeat: Infinity, duration: 0.35, ease: "linear" } : { duration: 0.2 }}
+                className="flex h-10 w-10 items-center justify-center rounded-lg border border-amber-500/40 bg-[#2b1710] text-lg font-black text-amber-100"
+              >
+                {diceFace}
+              </motion.div>
+            </div>
+
+            <div className="rounded-xl border border-amber-900/50 bg-[#3b2116] p-3">
+              <p className="text-xs font-semibold uppercase tracking-wide text-amber-200/70">Live Status</p>
+              <p className="mt-1 text-sm text-amber-100/90">{status}</p>
+              <p className="mt-1 text-xs text-amber-100/70">{lastRoll}</p>
+            </div>
+
+            <div className="rounded-xl border border-amber-900/50 bg-[#3b2116] p-3">
+              {!showResetConfirm ? (
+                <button
+                  className="w-full rounded-xl border border-amber-700/70 bg-[#2b1710] px-4 py-2 text-sm font-semibold text-amber-100 transition hover:bg-[#3d2117] disabled:cursor-not-allowed disabled:opacity-50"
+                  onClick={() => setShowResetConfirm(true)}
+                  disabled={!joinedRoom || isRolling}
+                >
+                  Reset Match
+                </button>
+              ) : (
+                <div className="space-y-2">
+                  <p className="text-xs text-amber-100/80">Reset this room for everyone and start from square 1?</p>
+                  <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                    <button
+                      className="rounded-xl bg-rose-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-rose-500 disabled:cursor-not-allowed disabled:opacity-60"
+                      onClick={resetGame}
+                      disabled={!joinedRoom || isRolling}
+                    >
+                      Yes, reset
+                    </button>
+                    <button
+                      className="rounded-xl border border-amber-700/70 bg-[#2b1710] px-4 py-2 text-sm font-semibold text-amber-100 transition hover:bg-[#3d2117]"
+                      onClick={() => setShowResetConfirm(false)}
+                    >
+                      Keep playing
+                    </button>
+                  </div>
                 </div>
-                <span className="text-sm text-stone-600">Position: {roomState.positions[player] ?? 1}</span>
-              </div>
-            );
-          })}
-          {!roomState?.players.length && <p className="text-sm text-stone-500">No players in room yet.</p>}
-        </div>
+              )}
+            </div>
+          </section>
+
+          <section className="rounded-2xl border border-[#4f2b19] bg-[linear-gradient(180deg,#2f1a12_0%,#1b0f0b_100%)] p-4 shadow-xl">
+            <h2 className="text-lg font-bold text-amber-100">Players</h2>
+            <p className="mt-1 text-xs text-amber-100/70">Room: {joinedRoom ?? "None"}</p>
+            <p className="mt-1 text-xs text-amber-100/70">You: {currentPlayerName ?? "Not joined"}</p>
+            <p className="mt-1 text-xs font-semibold text-amber-200">Winner: {roomState?.winner ?? "No winner yet"}</p>
+            <div className="mt-3 space-y-2">
+              {roomState?.players.map((player, index) => {
+                const online = roomState.online[player] ?? false;
+                return (
+                  <div
+                    key={player}
+                    className="flex items-center justify-between rounded-xl border border-amber-900/50 bg-[#3b2116] px-3 py-2"
+                  >
+                    <div className="flex items-center gap-2">
+                      <span
+                        className="inline-block h-3 w-3 rounded-full"
+                        style={{ backgroundColor: tokenColors[index % tokenColors.length] }}
+                      />
+                      <span className="text-sm font-semibold text-amber-100">{player}</span>
+                      <span className={`text-[11px] font-semibold ${online ? "text-emerald-300" : "text-amber-300/60"}`}>
+                        {online ? "Online" : "Offline"}
+                      </span>
+                    </div>
+                    <span className="text-xs text-amber-100/80">Pos: {roomState.positions[player] ?? 1}</span>
+                  </div>
+                );
+              })}
+              {!roomState?.players.length && <p className="text-sm text-amber-100/60">No players in room yet.</p>}
+            </div>
+          </section>
+        </aside>
       </section>
     </main>
   );

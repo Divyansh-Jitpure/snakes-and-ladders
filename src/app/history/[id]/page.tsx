@@ -22,24 +22,24 @@ export default async function HistoryDetailPage({ params }: Props) {
   const playerNames = Array.isArray(match.playerNames) ? (match.playerNames as string[]) : [];
 
   return (
-    <main className="mx-auto flex min-h-screen max-w-5xl flex-col gap-6 px-4 py-8">
-      <section className="rounded-2xl border border-stone-200 bg-white p-5 shadow-sm">
+    <main className="mx-auto flex min-h-screen max-w-6xl flex-col gap-6 px-4 py-8 text-amber-50">
+      <section className="rounded-2xl border border-amber-700/50 bg-[linear-gradient(180deg,#2b160f_0%,#180d08_100%)] p-5 shadow-xl">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
-            <p className="text-xs uppercase tracking-wide text-stone-500">Match details</p>
-            <h1 className="text-2xl font-semibold text-stone-900">Room {match.roomCode}</h1>
+            <p className="text-xs uppercase tracking-[0.18em] text-amber-200/70">Match details</p>
+            <h1 className="text-3xl font-black tracking-tight text-amber-100">Room {match.roomCode}</h1>
           </div>
           <Link
             href="/history"
-            className="rounded-xl border border-stone-300 px-4 py-2 text-sm font-medium text-stone-700 transition hover:bg-stone-100"
+            className="rounded-xl border border-amber-300/40 bg-amber-100/10 px-4 py-2 text-sm font-semibold text-amber-50 transition hover:bg-amber-100/20"
           >
             Back to history
           </Link>
         </div>
 
-        <div className="mt-4 grid gap-2 text-sm text-stone-600 sm:grid-cols-2">
+        <div className="mt-4 grid gap-2 text-sm text-amber-100/80 sm:grid-cols-2">
           <p>
-            Winner: <span className="font-semibold text-emerald-700">{match.winnerName}</span>
+            Winner: <span className="font-semibold text-emerald-300">{match.winnerName}</span>
           </p>
           <p>Date: {new Date(match.createdAt).toLocaleString()}</p>
           <p className="sm:col-span-2">Players: {playerNames.join(", ") || "Unknown"}</p>
@@ -47,25 +47,25 @@ export default async function HistoryDetailPage({ params }: Props) {
         </div>
       </section>
 
-      <section className="rounded-2xl border border-stone-200 bg-white p-5 shadow-sm">
-        <h2 className="text-lg font-semibold text-stone-900">Move Timeline</h2>
+      <section className="rounded-2xl border border-amber-700/50 bg-[linear-gradient(180deg,#2b160f_0%,#180d08_100%)] p-5 shadow-xl">
+        <h2 className="text-lg font-semibold text-amber-100">Move Timeline</h2>
         {match.moves.length === 0 ? (
-          <p className="mt-3 text-sm text-stone-600">No moves recorded for this match.</p>
+          <p className="mt-3 text-sm text-amber-100/70">No moves recorded for this match.</p>
         ) : (
           <div className="mt-4 space-y-2">
             {match.moves.map((move, index) => (
               <div
                 key={move.id}
-                className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-stone-200 px-3 py-2 text-sm"
+                className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-amber-800/50 bg-[#3a1f14] px-3 py-2 text-sm"
               >
-                <p className="font-medium text-stone-800">
+                <p className="font-semibold text-amber-100">
                   #{index + 1} {move.playerName}
                 </p>
-                <p className="text-stone-600">Dice: {move.diceRoll}</p>
-                <p className="text-stone-600">
+                <p className="text-amber-100/80">Dice: {move.diceRoll}</p>
+                <p className="text-amber-100/80">
                   {move.startPosition} to {move.endPosition}
                 </p>
-                <p className="text-stone-600">
+                <p className="text-amber-100/80">
                   {move.jumpType ? move.jumpType.toLowerCase() : "normal"}
                 </p>
               </div>

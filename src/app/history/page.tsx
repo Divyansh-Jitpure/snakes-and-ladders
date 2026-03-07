@@ -11,22 +11,23 @@ export default async function HistoryPage() {
   });
 
   return (
-    <main className="mx-auto flex min-h-screen max-w-5xl flex-col gap-6 px-4 py-8">
-      <section className="flex items-center justify-between rounded-2xl border border-stone-200 bg-white p-5 shadow-sm">
+    <main className="mx-auto flex min-h-screen max-w-6xl flex-col gap-6 px-4 py-8 text-amber-50">
+      <section className="flex items-center justify-between rounded-2xl border border-amber-700/50 bg-[linear-gradient(180deg,#3a1b0f_0%,#1e0f0a_100%)] p-5 shadow-xl">
         <div>
-          <h1 className="text-2xl font-semibold text-stone-900">Match History</h1>
-          <p className="text-sm text-stone-600">Latest completed snakes and ladders matches.</p>
+          <p className="text-xs uppercase tracking-[0.18em] text-amber-200/70">Adventure Log</p>
+          <h1 className="text-3xl font-black tracking-tight text-amber-100">Match History</h1>
+          <p className="text-sm text-amber-100/80">Latest completed snakes and ladders matches.</p>
         </div>
         <Link
           href="/"
-          className="rounded-xl border border-stone-300 px-4 py-2 text-sm font-medium text-stone-700 transition hover:bg-stone-100"
+          className="rounded-xl border border-amber-300/40 bg-amber-100/10 px-4 py-2 text-sm font-semibold text-amber-50 transition hover:bg-amber-100/20"
         >
           Back to game
         </Link>
       </section>
 
       {matches.length === 0 ? (
-        <section className="rounded-2xl border border-stone-200 bg-white p-6 text-sm text-stone-600 shadow-sm">
+        <section className="rounded-2xl border border-amber-700/50 bg-[linear-gradient(180deg,#2b160f_0%,#180d08_100%)] p-6 text-sm text-amber-100/80 shadow-xl">
           No saved matches yet. Complete a game to see it here.
         </section>
       ) : (
@@ -34,22 +35,25 @@ export default async function HistoryPage() {
           {matches.map((match) => {
             const playerNames = Array.isArray(match.playerNames) ? (match.playerNames as string[]) : [];
             return (
-              <article key={match.id} className="rounded-2xl border border-stone-200 bg-white p-5 shadow-sm">
+              <article
+                key={match.id}
+                className="rounded-2xl border border-amber-700/50 bg-[linear-gradient(180deg,#2b160f_0%,#180d08_100%)] p-5 shadow-xl"
+              >
                 <div className="flex flex-wrap items-center justify-between gap-2">
-                  <p className="text-sm font-medium text-stone-700">
-                    Room <span className="font-semibold text-stone-900">{match.roomCode}</span>
+                  <p className="text-sm font-medium text-amber-100/90">
+                    Room <span className="font-bold text-amber-100">{match.roomCode}</span>
                   </p>
-                  <p className="text-xs text-stone-500">{new Date(match.createdAt).toLocaleString()}</p>
+                  <p className="text-xs text-amber-100/60">{new Date(match.createdAt).toLocaleString()}</p>
                 </div>
-                <p className="mt-2 text-sm text-stone-700">
-                  Winner: <span className="font-semibold text-emerald-700">{match.winnerName}</span>
+                <p className="mt-2 text-sm text-amber-100/90">
+                  Winner: <span className="font-semibold text-emerald-300">{match.winnerName}</span>
                 </p>
-                <p className="mt-1 text-sm text-stone-600">Players: {playerNames.join(", ") || "Unknown"}</p>
-                <p className="mt-1 text-sm text-stone-600">Moves: {match.moves.length}</p>
+                <p className="mt-1 text-sm text-amber-100/75">Players: {playerNames.join(", ") || "Unknown"}</p>
+                <p className="mt-1 text-sm text-amber-100/75">Moves: {match.moves.length}</p>
                 <div className="mt-3">
                   <Link
                     href={`/history/${match.id}`}
-                    className="inline-flex rounded-lg border border-stone-300 px-3 py-1.5 text-xs font-medium text-stone-700 transition hover:bg-stone-100"
+                    className="inline-flex rounded-lg border border-amber-300/40 bg-amber-100/10 px-3 py-1.5 text-xs font-semibold text-amber-50 transition hover:bg-amber-100/20"
                   >
                     View details
                   </Link>
