@@ -89,7 +89,6 @@ type BoardProps = {
 };
 
 export default function Board({ displayedPositions, roomState, lastMove }: BoardProps) {
-  const jumpMap = new Map(jumps.map((jump) => [jump.from, jump]));
   const activeSnakeTarget = lastMove?.jumpType === "snake" ? lastMove.endPosition : null;
 
   return (
@@ -112,7 +111,6 @@ export default function Board({ displayedPositions, roomState, lastMove }: Board
               const visualRow = Math.floor(index / boardSize);
               const visualColumn = index % boardSize;
               const number = cellNumberFromVisualCoordinates(visualRow, visualColumn);
-              const jump = jumpMap.get(number);
               const isLightCell = (visualRow + visualColumn) % 2 === 0;
               const isMoveEndpoint = lastMove?.endPosition === number;
 
@@ -124,15 +122,6 @@ export default function Board({ displayedPositions, roomState, lastMove }: Board
                   } ${isMoveEndpoint ? "ring-2 ring-yellow-300 ring-inset" : ""}`}
                 >
                   <span className={`font-bold ${isMoveEndpoint ? "text-yellow-200" : "text-amber-100"}`}>{number}</span>
-                  {jump && (
-                    <span
-                      className={`absolute right-0.5 bottom-0.5 rounded px-1 py-0.5 text-[8px] font-semibold text-white sm:right-1 sm:bottom-1 sm:text-[9px] ${
-                        jump.type === "ladder" ? "bg-emerald-600" : "bg-rose-600"
-                      }`}
-                    >
-                      {jump.type === "ladder" ? "L" : "S"}:{jump.to}
-                    </span>
-                  )}
                 </div>
               );
             })}
@@ -236,8 +225,6 @@ export default function Board({ displayedPositions, roomState, lastMove }: Board
           })}
         </div>
         <div className="mt-3 flex flex-wrap gap-2 text-xs text-amber-100/90">
-          <span className="rounded-full bg-emerald-700/50 px-2 py-1 font-medium">L = Ladder</span>
-          <span className="rounded-full bg-rose-700/50 px-2 py-1 font-medium">S = Snake</span>
           {lastMove && (
             <span className="rounded-full bg-amber-700/50 px-2 py-1 font-medium text-amber-50">
               {lastMove.playerName}: {lastMove.startPosition} to {lastMove.endPosition}
