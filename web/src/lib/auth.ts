@@ -34,7 +34,10 @@ providers.push(
 
 export const authOptions: NextAuthOptions = {
   adapter: PrismaAdapter(prisma),
-  secret: process.env.AUTH_SECRET || "dev-auth-secret-change-in-production",
+  secret:
+    process.env.AUTH_SECRET ||
+    process.env.NEXTAUTH_SECRET ||
+    "dev-auth-secret-change-in-production",
   session: {
     strategy: "jwt",
   },

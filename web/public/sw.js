@@ -1,4 +1,4 @@
-const CACHE_NAME = "snakes-ladders-v1";
+const CACHE_NAME = "snakes-ladders-v2";
 const APP_SHELL = ["/", "/manifest.webmanifest"];
 
 self.addEventListener("install", (event) => {
@@ -25,6 +25,12 @@ self.addEventListener("activate", (event) => {
 
 self.addEventListener("fetch", (event) => {
   if (event.request.method !== "GET") {
+    return;
+  }
+  const url = new URL(event.request.url);
+
+  // Never cache API/auth traffic. These must always hit network.
+  if (url.origin === self.location.origin && url.pathname.startsWith("/api/")) {
     return;
   }
 
