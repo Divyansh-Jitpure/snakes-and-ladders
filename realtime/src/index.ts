@@ -50,6 +50,14 @@ const disconnectGraceMs = Number(process.env.DISCONNECT_GRACE_MS ?? 60_000);
 const app = express();
 app.use(cors());
 app.get("/health", (_req, res) => res.json({ ok: true }));
+app.get("/rooms/:roomCode/exists", (req, res) => {
+  const roomCode = String(req.params.roomCode ?? "").trim().toUpperCase();
+  if (!roomCode) {
+    res.status(400).json({ ok: false, message: "Room code is required." });
+    return;
+  }
+  res.json({ ok: true, exists: rooms.has(roomCode) });
+});
 
 const httpServer = createServer(app);
 const io = new Server(httpServer, {

@@ -265,6 +265,9 @@ export default function PlayScreen({ initialRoomCode, mode, initialPlayerName = 
             if (!options?.silentError) {
               toast.error(message);
             }
+            if (message.toLowerCase().includes("room not found")) {
+              router.replace(`/?player=${encodeURIComponent(cleanName)}&room=${encodeURIComponent(cleanRoom)}`);
+            }
             return;
           }
 
@@ -285,7 +288,7 @@ export default function PlayScreen({ initialRoomCode, mode, initialPlayerName = 
         }
       );
     },
-    [playerId, playerName, roomCode]
+    [playerId, playerName, roomCode, router]
   );
 
   const createRoom = useCallback(

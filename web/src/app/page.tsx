@@ -12,6 +12,8 @@ import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
+const realtimeUrl = process.env.NEXT_PUBLIC_REALTIME_URL ?? "http://localhost:4000";
+
 function sanitizeRoomCode(value: string) {
   return value.trim().toUpperCase();
 }
@@ -25,12 +27,17 @@ export default function Home() {
 
   useEffect(() => {
     const timer = setTimeout(() => {
+      const params = typeof window === "undefined" ? new URLSearchParams() : new URLSearchParams(window.location.search);
+      const queryName = (params.get("player") ?? "").trim();
+      const queryRoom = sanitizeRoomCode(params.get("room") ?? "");
       const storedName = readStoredValue(identityNameKey);
       const storedRoom = sanitizeRoomCode(readStoredValue(identityRoomKey));
+      const activeName = queryName || storedName;
+      const activeRoom = queryRoom || storedRoom;
       setSavedPlayerName(storedName);
       setSavedRoomCode(storedRoom);
-      setPlayerName(storedName);
-      setRoomCode(storedRoom);
+      setPlayerName(activeName);
+      setRoomCode(activeRoom);
     }, 0);
     return () => clearTimeout(timer);
   }, []);
@@ -42,12 +49,29 @@ export default function Home() {
     return Boolean(savedPlayerName.trim() && savedRoomCode);
   }, [savedPlayerName, savedRoomCode]);
 
-  const goToGame = (mode: "create" | "join", options?: { roomCode?: string; playerName?: string }) => {
+  const goToGame = async (mode: "create" | "join", options?: { roomCode?: string; playerName?: string }) => {
     const cleanName = (options?.playerName ?? playerName).trim();
     const cleanRoom = sanitizeRoomCode(options?.roomCode ?? roomCode);
     if (!cleanName || !cleanRoom) {
       toast.error("Player name and room code are required.");
       return;
+    }
+
+    if (mode === "join") {
+      try {
+        const response = await fetch(`${realtimeUrl}/rooms/${encodeURIComponent(cleanRoom)}/exists`);
+        if (!response.ok) {
+          throw new Error("Unable to verify room.");
+        }
+        const payload = (await response.json()) as { exists?: boolean };
+        if (!payload.exists) {
+          toast.error(`Room ${cleanRoom} does not exist.`);
+          return;
+        }
+      } catch {
+        toast.error("Could not verify room right now. Try again.");
+        return;
+      }
     }
 
     ensureStoredPlayerId();
@@ -110,14 +134,18 @@ export default function Home() {
           <div className="mt-5 grid grid-cols-1 gap-2 sm:grid-cols-2">
             <button
               className="rounded-xl bg-amber-600 px-4 py-2 font-semibold text-stone-950 transition hover:bg-amber-500 disabled:cursor-not-allowed disabled:bg-amber-800/70 disabled:text-amber-100/70"
-              onClick={() => goToGame("create")}
+              onClick={() => {
+                void goToGame("create");
+              }}
               disabled={!canStart}
             >
               Create Room
             </button>
             <button
               className="rounded-xl border border-amber-700 bg-[#2c1710] px-4 py-2 font-semibold text-amber-100 transition hover:bg-[#3d2117] disabled:cursor-not-allowed disabled:opacity-50"
-              onClick={() => goToGame("join")}
+              onClick={() => {
+                void goToGame("join");
+              }}
               disabled={!canStart}
             >
               Join Room
@@ -132,7 +160,9 @@ export default function Home() {
               </p>
               <button
                 className="mt-3 w-full rounded-xl bg-emerald-600 px-4 py-2 font-semibold text-white transition hover:bg-emerald-500"
-                onClick={() => goToGame("join", { roomCode: savedRoomCode, playerName: savedPlayerName })}
+                onClick={() => {
+                  void goToGame("join", { roomCode: savedRoomCode, playerName: savedPlayerName });
+                }}
               >
                 Back to Game
               </button>
