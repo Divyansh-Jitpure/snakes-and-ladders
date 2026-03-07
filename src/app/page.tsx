@@ -66,6 +66,12 @@ const jumps: Jump[] = [
 ];
 
 const tokenColors = ["#ea580c", "#0284c7", "#16a34a", "#7c3aed"];
+const tokenSlots = [
+  { x: -1.8, y: -1.8 },
+  { x: 1.8, y: -1.8 },
+  { x: -1.8, y: 1.8 },
+  { x: 1.8, y: 1.8 }
+];
 
 function cellNumberFromVisualCoordinates(visualRow: number, visualColumn: number) {
   const rowFromBottom = boardSize - 1 - visualRow;
@@ -573,17 +579,17 @@ export default function Home() {
               {roomState?.players.map((player, index) => {
                 const position = roomState.positions[player] ?? 1;
                 const point = positionToBoardPoint(position);
-                const offset = index % 2 === 0 ? -10 : 10;
+                const slot = tokenSlots[index % tokenSlots.length];
                 const isLastMover = player === lastMove?.playerName;
 
                 return (
                   <motion.div
                     key={player}
-                    className="absolute z-10 h-4 w-4 rounded-full border-2 border-white shadow sm:h-5 sm:w-5"
+                    className="absolute z-10 h-4 w-4 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white shadow sm:h-5 sm:w-5"
                     style={{ backgroundColor: tokenColors[index % tokenColors.length] }}
                     animate={{
-                      left: `calc(${point.left}% + ${offset}px)`,
-                      top: `calc(${point.top}% + ${index < 2 ? "-10px" : "10px"})`,
+                      left: `${point.left + slot.x}%`,
+                      top: `${point.top + slot.y}%`,
                       scale: isLastMover ? 1.2 : 1
                     }}
                     transition={{ type: "spring", stiffness: 180, damping: 20 }}
