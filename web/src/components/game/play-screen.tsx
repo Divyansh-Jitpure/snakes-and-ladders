@@ -12,6 +12,7 @@ import {
 import type { DicePayload, LastMove, MoveLogEntry, RoomState } from "@/components/game/types";
 import { motion } from "framer-motion";
 import Link from "next/link";
+import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { io, type Socket } from "socket.io-client";
@@ -28,6 +29,7 @@ type PlayScreenProps = {
 };
 
 export default function PlayScreen({ initialRoomCode, mode, initialPlayerName = "" }: PlayScreenProps) {
+  const { data: session, status: sessionStatus } = useSession();
   const router = useRouter();
   const socketRef = useRef<Socket | null>(null);
   const rollingTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -52,6 +54,9 @@ export default function PlayScreen({ initialRoomCode, mode, initialPlayerName = 
   const [roomState, setRoomState] = useState<RoomState | null>(null);
   const [displayedPositions, setDisplayedPositions] = useState<Record<string, number>>({});
   const [moveLog, setMoveLog] = useState<MoveLogEntry[]>([]);
+  const isAuthenticated = sessionStatus === "authenticated" && Boolean(session?.user);
+  const sessionPlayerName = (session?.user?.name ?? "").trim();
+  const effectivePlayerName = playerName.trim() || sessionPlayerName;
 
   const activeTurn = useMemo(() => {
     if (!roomState) {
@@ -79,6 +84,10 @@ export default function PlayScreen({ initialRoomCode, mode, initialPlayerName = 
   }, [activeTurn, currentPlayerName, roomState]);
 
   useEffect(() => {
+    if (!isAuthenticated) {
+      return;
+    }
+
     const socket = io(realtimeUrl, { transports: ["websocket"] });
     socketRef.current = socket;
 
@@ -99,7 +108,7 @@ export default function PlayScreen({ initialRoomCode, mode, initialPlayerName = 
       socket.disconnect();
       socketRef.current = null;
     };
-  }, []);
+  }, [isAuthenticated]);
 
   const persistHistory = useCallback(
     async (winnerName: string, players: string[]) => {
@@ -140,6 +149,10 @@ export default function PlayScreen({ initialRoomCode, mode, initialPlayerName = 
   );
 
   useEffect(() => {
+    if (!isAuthenticated) {
+      return;
+    }
+
     if (!joinedRoom || !socketRef.current) {
       return;
     }
@@ -234,7 +247,7 @@ export default function PlayScreen({ initialRoomCode, mode, initialPlayerName = 
       socketRef.current?.off(stateEvent, handleState);
       socketRef.current?.off(currentDiceEvent, handleDice);
     };
-  }, [currentPlayerName, joinedRoom, persistHistory]);
+  }, [currentPlayerName, isAuthenticated, joinedRoom, persistHistory]);
 
   const joinRoom = useCallback(
     (options?: { silentError?: boolean; isReconnect?: boolean }) => {
@@ -244,7 +257,7 @@ export default function PlayScreen({ initialRoomCode, mode, initialPlayerName = 
       }
 
       const cleanRoom = roomCode.trim().toUpperCase();
-      const cleanName = playerName.trim();
+      const cleanName = effectivePlayerName;
       const cleanPlayerId = resolvePlayerId(playerId, setPlayerId);
       if (!cleanRoom || !cleanName || !cleanPlayerId) {
         if (!options?.silentError) {
@@ -288,7 +301,7 @@ export default function PlayScreen({ initialRoomCode, mode, initialPlayerName = 
         }
       );
     },
-    [playerId, playerName, roomCode, router]
+    [effectivePlayerName, playerId, roomCode, router]
   );
 
   const createRoom = useCallback(
@@ -299,7 +312,7 @@ export default function PlayScreen({ initialRoomCode, mode, initialPlayerName = 
       }
 
       const cleanRoom = roomCode.trim().toUpperCase();
-      const cleanName = playerName.trim();
+      const cleanName = effectivePlayerName;
       const cleanPlayerId = resolvePlayerId(playerId, setPlayerId);
       if (!cleanRoom || !cleanName || !cleanPlayerId) {
         if (!options?.silentError) {
@@ -341,16 +354,20 @@ export default function PlayScreen({ initialRoomCode, mode, initialPlayerName = 
         }
       );
     },
-    [joinRoom, playerId, playerName, roomCode]
+    [effectivePlayerName, joinRoom, playerId, roomCode]
   );
 
   useEffect(() => {
+    if (!isAuthenticated) {
+      return;
+    }
+
     if (!connected || joinedRoom || autoJoinAttemptedRef.current) {
       return;
     }
     autoJoinAttemptedRef.current = true;
 
-    if (!playerName.trim()) {
+    if (!effectivePlayerName) {
       toast.error("No player profile found. Go back to menu.");
       return;
     }
@@ -364,7 +381,7 @@ export default function PlayScreen({ initialRoomCode, mode, initialPlayerName = 
     }, 0);
 
     return () => clearTimeout(timer);
-  }, [connected, createRoom, joinRoom, joinedRoom, mode, playerName]);
+  }, [connected, createRoom, effectivePlayerName, isAuthenticated, joinRoom, joinedRoom, mode]);
 
   const rollDice = () => {
     if (!canRoll) {
@@ -425,6 +442,33 @@ export default function PlayScreen({ initialRoomCode, mode, initialPlayerName = 
   const leaveRoom = () => {
     router.push("/");
   };
+
+  if (sessionStatus === "loading") {
+    return (
+      <main className="mx-auto flex min-h-screen w-full max-w-3xl items-center justify-center px-4 py-10 text-amber-50">
+        <section className="w-full rounded-3xl border border-amber-700/50 bg-[linear-gradient(180deg,#2f1a12_0%,#1b0f0b_100%)] p-6 text-center">
+          <p className="text-sm font-semibold text-amber-100/85">Checking authentication...</p>
+        </section>
+      </main>
+    );
+  }
+
+  if (!isAuthenticated) {
+    return (
+      <main className="mx-auto flex min-h-screen w-full max-w-3xl items-center justify-center px-4 py-10 text-amber-50">
+        <section className="w-full rounded-3xl border border-amber-700/50 bg-[linear-gradient(180deg,#2f1a12_0%,#1b0f0b_100%)] p-6 text-center">
+          <h1 className="text-2xl font-black text-amber-100">Sign in required</h1>
+          <p className="mt-2 text-sm text-amber-100/80">Choose Google or Guest on the menu before entering a match.</p>
+          <Link
+            href="/"
+            className="mt-5 inline-flex rounded-xl bg-amber-600 px-4 py-2 font-semibold text-stone-950 transition hover:bg-amber-500"
+          >
+            Go to Menu
+          </Link>
+        </section>
+      </main>
+    );
+  }
 
   return (
     <main className="mx-auto flex min-h-screen max-w-7xl flex-col gap-6 px-3 py-5 text-amber-50 sm:px-4 sm:py-8 md:gap-8 md:px-8">

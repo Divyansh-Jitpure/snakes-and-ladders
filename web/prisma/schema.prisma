@@ -8,13 +8,20 @@ datasource db {
 }
 
 model User {
-  id           String        @id @default(cuid())
-  displayName  String
-  createdAt    DateTime      @default(now())
-  updatedAt    DateTime      @updatedAt
-  wonMatches   Match[]       @relation("MatchWinner")
-  matchPlayers MatchPlayer[]
-  moves        Move[]
+  id             String        @id @default(cuid())
+  name           String?
+  email          String?       @unique
+  emailVerified  DateTime?
+  image          String?
+  displayName    String?
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+  wonMatches     Match[]       @relation("MatchWinner")
+  matchPlayers   MatchPlayer[]
+  moves          Move[]
+  gameHistories  GameHistory[]
+  accounts       Account[]
+  sessions       Session[]
 }
 
 model Match {
@@ -60,16 +67,19 @@ model Move {
 }
 
 model GameHistory {
-  id         String     @id @default(cuid())
-  dedupeKey  String     @unique
-  roomCode   String
-  winnerName String
-  playerNames Json
-  createdAt  DateTime   @default(now())
-  moves      GameMove[]
+  id              String     @id @default(cuid())
+  dedupeKey       String     @unique
+  roomCode        String
+  winnerName      String
+  playerNames     Json
+  createdByUserId String?
+  createdAt       DateTime   @default(now())
+  moves           GameMove[]
+  createdBy       User?      @relation(fields: [createdByUserId], references: [id], onDelete: SetNull)
 
   @@index([createdAt])
   @@index([winnerName])
+  @@index([createdByUserId, createdAt])
 }
 
 model GameMove {
@@ -96,4 +106,40 @@ enum MatchStatus {
 enum MoveJumpType {
   SNAKE
   LADDER
+}
+
+model Account {
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([provider, providerAccountId])
+}
+
+model Session {
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([sessionToken])
+}
+
+model VerificationToken {
+  identifier String
+  token      String
+  expires    DateTime
+
+  @@id([identifier, token])
 }

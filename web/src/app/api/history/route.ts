@@ -1,3 +1,4 @@
+import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { NextResponse } from "next/server";
 
@@ -19,6 +20,7 @@ type HistoryPayload = {
 };
 
 export async function POST(request: Request) {
+  const session = await auth();
   const body = (await request.json()) as Partial<HistoryPayload>;
   const dedupeKey = body.dedupeKey?.trim();
   const roomCode = body.roomCode?.trim().toUpperCase();
@@ -37,6 +39,7 @@ export async function POST(request: Request) {
         roomCode,
         winnerName,
         playerNames,
+        createdByUserId: session?.user?.id ?? null,
         moves: {
           create: moves.map((move) => ({
             playerName: move.playerName,
