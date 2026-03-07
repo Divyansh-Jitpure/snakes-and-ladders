@@ -221,12 +221,10 @@ export default function Home() {
 
     socket.on("connect", () => {
       setConnected(true);
-      toast.success("Connected to realtime server.");
     });
 
     socket.on("disconnect", () => {
       setConnected(false);
-      toast.error("Disconnected from realtime server.");
     });
 
     return () => {
