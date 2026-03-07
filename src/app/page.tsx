@@ -3,13 +3,14 @@
 import { motion } from "framer-motion";
 import { toast } from "sonner";
 import { io, type Socket } from "socket.io-client";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 type RoomState = {
   players: string[];
   positions: Record<string, number>;
   turnIndex: number;
   winner: string | null;
+  online: Record<string, boolean>;
 };
 
 type JumpType = "snake" | "ladder";
@@ -28,8 +29,18 @@ type LastMove = {
   dice: number | null;
 };
 
+type DicePayload = {
+  playerName: string;
+  dice: number;
+  startPosition: number;
+  nextPosition: number;
+  jumpType: JumpType | null;
+};
+
 const realtimeUrl = process.env.NEXT_PUBLIC_REALTIME_URL ?? "http://localhost:4000";
 const boardSize = 10;
+const identityNameKey = "snl_player_name";
+const identityRoomKey = "snl_room_code";
 const jumps: Jump[] = [
   { from: 2, to: 38, type: "ladder" },
   { from: 7, to: 14, type: "ladder" },
@@ -75,13 +86,30 @@ function positionToBoardPoint(position: number) {
   };
 }
 
+function persistIdentity(playerName: string, roomCode: string) {
+  if (typeof window === "undefined") {
+    return;
+  }
+  window.localStorage.setItem(identityNameKey, playerName);
+  window.localStorage.setItem(identityRoomKey, roomCode);
+}
+
+function readStoredValue(key: string) {
+  if (typeof window === "undefined") {
+    return "";
+  }
+  return window.localStorage.getItem(key) ?? "";
+}
+
 export default function Home() {
   const socketRef = useRef<Socket | null>(null);
   const rollingTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const autoJoinAttemptedRef = useRef(false);
+
   const [connected, setConnected] = useState(false);
-  const [playerName, setPlayerName] = useState("");
+  const [playerName, setPlayerName] = useState(() => readStoredValue(identityNameKey));
   const [currentPlayerName, setCurrentPlayerName] = useState<string | null>(null);
-  const [roomCode, setRoomCode] = useState("");
+  const [roomCode, setRoomCode] = useState(() => readStoredValue(identityRoomKey));
   const [joinedRoom, setJoinedRoom] = useState<string | null>(null);
   const [status, setStatus] = useState("Enter your name and room code.");
   const [lastRoll, setLastRoll] = useState("No rolls yet.");
@@ -89,6 +117,7 @@ export default function Home() {
   const [isRolling, setIsRolling] = useState(false);
   const [lastMove, setLastMove] = useState<LastMove | null>(null);
   const [roomState, setRoomState] = useState<RoomState | null>(null);
+
   const jumpMap = useMemo(() => new Map(jumps.map((jump) => [jump.from, jump])), []);
 
   const activeTurn = useMemo(() => {
@@ -124,6 +153,7 @@ export default function Home() {
       setConnected(true);
       toast.success("Connected to realtime server.");
     });
+
     socket.on("disconnect", () => {
       setConnected(false);
       toast.error("Disconnected from realtime server.");
@@ -144,33 +174,18 @@ export default function Home() {
     }
 
     const stateEvent = `room:state:${joinedRoom}`;
-    const diceEvent = `dice:result:${joinedRoom}`;
+    const currentDiceEvent = `dice:result:${joinedRoom}`;
 
     const handleState = (incomingState: RoomState) => {
       setRoomState((previousState) => {
         if (previousState) {
-          const movedPlayer = incomingState.players.find((player) => {
-            const previousPosition = previousState.positions[player] ?? 1;
-            const nextPosition = incomingState.positions[player] ?? 1;
-            return previousPosition !== nextPosition;
-          });
-
-          if (movedPlayer) {
-            const startPosition = previousState.positions[movedPlayer] ?? 1;
-            const endPosition = incomingState.positions[movedPlayer] ?? 1;
-            const jumpedFrom = jumps.find((jump) => jump.to === endPosition)?.from ?? null;
-            const jumpType = jumpedFrom ? (jumpMap.get(jumpedFrom)?.type ?? null) : null;
-
-            setLastMove({
-              playerName: movedPlayer,
-              startPosition,
-              endPosition,
-              jumpType,
-              dice: null
-            });
+          const wasFinished = Boolean(previousState.winner);
+          const resetToStart = incomingState.players.every((player) => (incomingState.positions[player] ?? 1) === 1);
+          if (resetToStart && (wasFinished || !incomingState.winner)) {
+            setLastMove(null);
+            setLastRoll("No rolls yet.");
           }
         }
-
         return incomingState;
       });
 
@@ -181,27 +196,91 @@ export default function Home() {
       }
     };
 
-    const handleDice = (payload: { playerName: string; dice: number; nextPosition: number }) => {
+    const handleDice = (payload: DicePayload) => {
       if (rollingTimerRef.current) {
         clearInterval(rollingTimerRef.current);
         rollingTimerRef.current = null;
       }
+
       setIsRolling(false);
       setDiceFace(payload.dice);
       setLastRoll(`${payload.playerName} rolled ${payload.dice} and moved to ${payload.nextPosition}.`);
-      setLastMove((previous) =>
-        previous && previous.playerName === payload.playerName ? { ...previous, dice: payload.dice } : previous
-      );
+      setLastMove({
+        playerName: payload.playerName,
+        startPosition: payload.startPosition,
+        endPosition: payload.nextPosition,
+        jumpType: payload.jumpType,
+        dice: payload.dice
+      });
     };
 
     socketRef.current.on(stateEvent, handleState);
-    socketRef.current.on(diceEvent, handleDice);
+    socketRef.current.on(currentDiceEvent, handleDice);
 
     return () => {
       socketRef.current?.off(stateEvent, handleState);
-      socketRef.current?.off(diceEvent, handleDice);
+      socketRef.current?.off(currentDiceEvent, handleDice);
     };
-  }, [joinedRoom, jumpMap]);
+  }, [joinedRoom]);
+
+  const joinRoom = useCallback(
+    (options?: { silentError?: boolean; isReconnect?: boolean }) => {
+      const socket = socketRef.current;
+      if (!socket) {
+        return;
+      }
+
+      const cleanRoom = roomCode.trim().toUpperCase();
+      const cleanName = playerName.trim();
+      if (!cleanRoom || !cleanName) {
+        if (!options?.silentError) {
+          const message = "Room code and player name are required.";
+          setStatus(message);
+          toast.error(message);
+        }
+        return;
+      }
+
+      socket.emit("room:join", { roomCode: cleanRoom, playerName: cleanName }, (response: { ok: boolean; message?: string }) => {
+        if (!response.ok) {
+          const message = response.message ?? "Unable to join room.";
+          setStatus(message);
+          if (!options?.silentError) {
+            toast.error(message);
+          }
+          return;
+        }
+
+        setJoinedRoom(cleanRoom);
+        setCurrentPlayerName(cleanName);
+        persistIdentity(cleanName, cleanRoom);
+
+        const message = options?.isReconnect
+          ? `Reconnected as ${cleanName} in room ${cleanRoom}.`
+          : `Joined room ${cleanRoom}. Wait for your turn.`;
+
+        setStatus(message);
+        toast.success(message);
+      });
+    },
+    [playerName, roomCode]
+  );
+
+  useEffect(() => {
+    if (!connected || joinedRoom || autoJoinAttemptedRef.current) {
+      return;
+    }
+    autoJoinAttemptedRef.current = true;
+    if (!playerName.trim() || !roomCode.trim()) {
+      return;
+    }
+
+    const timer = setTimeout(() => {
+      joinRoom({ silentError: true, isReconnect: true });
+    }, 0);
+
+    return () => clearTimeout(timer);
+  }, [connected, joinRoom, joinedRoom, playerName, roomCode]);
 
   const createRoom = () => {
     const socket = socketRef.current;
@@ -209,9 +288,18 @@ export default function Home() {
       return;
     }
 
+    const cleanRoom = roomCode.trim().toUpperCase();
+    const cleanName = playerName.trim();
+    if (!cleanRoom || !cleanName) {
+      const message = "Room code and player name are required.";
+      setStatus(message);
+      toast.error(message);
+      return;
+    }
+
     socket.emit(
       "room:create",
-      { roomCode, playerName },
+      { roomCode: cleanRoom, playerName: cleanName },
       (response: { ok: boolean; message?: string }) => {
         if (!response.ok) {
           const message = response.message ?? "Unable to create room.";
@@ -219,38 +307,13 @@ export default function Home() {
           toast.error(message);
           return;
         }
-        const cleanRoom = roomCode.trim().toUpperCase();
-        const cleanName = playerName.trim();
+
         setJoinedRoom(cleanRoom);
         setCurrentPlayerName(cleanName);
+        autoJoinAttemptedRef.current = true;
+        persistIdentity(cleanName, cleanRoom);
+
         const message = `Room ${cleanRoom} created. Share this code with friends.`;
-        setStatus(message);
-        toast.success(message);
-      }
-    );
-  };
-
-  const joinRoom = () => {
-    const socket = socketRef.current;
-    if (!socket) {
-      return;
-    }
-
-    socket.emit(
-      "room:join",
-      { roomCode, playerName },
-      (response: { ok: boolean; message?: string }) => {
-        if (!response.ok) {
-          const message = response.message ?? "Unable to join room.";
-          setStatus(message);
-          toast.error(message);
-          return;
-        }
-        const cleanRoom = roomCode.trim().toUpperCase();
-        const cleanName = playerName.trim();
-        setJoinedRoom(cleanRoom);
-        setCurrentPlayerName(cleanName);
-        const message = `Joined room ${cleanRoom}. Wait for your turn.`;
         setStatus(message);
         toast.success(message);
       }
@@ -274,13 +337,31 @@ export default function Home() {
           clearInterval(rollingTimerRef.current);
           rollingTimerRef.current = null;
         }
+
         setIsRolling(false);
         const message = response.message ?? "Unable to roll dice.";
         setStatus(message);
         toast.error(message);
         return;
       }
+
       toast.info("Dice rolled.");
+    });
+  };
+
+  const resetGame = () => {
+    socketRef.current?.emit("game:reset", {}, (response: { ok: boolean; message?: string }) => {
+      if (!response.ok) {
+        const message = response.message ?? "Unable to reset game.";
+        setStatus(message);
+        toast.error(message);
+        return;
+      }
+
+      setLastMove(null);
+      setLastRoll("No rolls yet.");
+      setStatus("Game reset. Starting from square 1.");
+      toast.success("Game reset. Play again.");
     });
   };
 
@@ -295,7 +376,7 @@ export default function Home() {
         <p className="text-xs uppercase tracking-[0.25em] text-amber-100">Online Multiplayer</p>
         <h1 className="mt-3 text-3xl font-semibold sm:text-4xl md:text-5xl">Snakes and Ladders</h1>
         <p className="mt-3 max-w-2xl text-sm text-amber-100 md:text-base">
-          MVP lobby is ready. Create a room, invite friends, and roll live turns through Socket.IO.
+          Create or join a room, roll in turn, and continue the same player session even after page refresh.
         </p>
       </motion.section>
 
@@ -331,7 +412,7 @@ export default function Home() {
             value={roomCode}
             onChange={(event) => setRoomCode(event.target.value)}
           />
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <button
               className="rounded-xl bg-orange-500 px-4 py-2 font-medium text-white transition hover:bg-orange-600"
               onClick={createRoom}
@@ -340,7 +421,7 @@ export default function Home() {
             </button>
             <button
               className="rounded-xl border border-stone-300 px-4 py-2 font-medium text-stone-700 transition hover:bg-stone-100"
-              onClick={joinRoom}
+              onClick={() => joinRoom()}
             >
               Join room
             </button>
@@ -350,6 +431,13 @@ export default function Home() {
               disabled={!canRoll}
             >
               {isRolling ? "Rolling..." : "Roll dice"}
+            </button>
+            <button
+              className="rounded-xl bg-stone-900 px-4 py-2 font-medium text-white transition hover:bg-stone-700 disabled:cursor-not-allowed disabled:bg-stone-400"
+              onClick={resetGame}
+              disabled={!joinedRoom || isRolling}
+            >
+              Play again
             </button>
           </div>
           <div className="mt-2 flex items-center gap-3 rounded-xl border border-stone-200 bg-stone-50 px-3 py-2">
@@ -446,21 +534,27 @@ export default function Home() {
         <p className="text-sm text-stone-600">You are: {currentPlayerName ?? "Not joined"}</p>
         <p className="text-sm font-semibold text-stone-700">Winner: {roomState?.winner ?? "No winner yet"}</p>
         <div className="mt-4 space-y-2">
-          {roomState?.players.map((player, index) => (
-            <div
-              key={player}
-              className="flex items-center justify-between rounded-xl border border-stone-200 px-3 py-2"
-            >
-              <div className="flex items-center gap-2">
-                <span
-                  className="inline-block h-3 w-3 rounded-full"
-                  style={{ backgroundColor: tokenColors[index % tokenColors.length] }}
-                />
-                <span className="font-medium text-stone-800">{player}</span>
+          {roomState?.players.map((player, index) => {
+            const online = roomState.online[player] ?? false;
+            return (
+              <div
+                key={player}
+                className="flex items-center justify-between rounded-xl border border-stone-200 px-3 py-2"
+              >
+                <div className="flex items-center gap-2">
+                  <span
+                    className="inline-block h-3 w-3 rounded-full"
+                    style={{ backgroundColor: tokenColors[index % tokenColors.length] }}
+                  />
+                  <span className="font-medium text-stone-800">{player}</span>
+                  <span className={`text-xs font-medium ${online ? "text-emerald-600" : "text-stone-400"}`}>
+                    {online ? "Online" : "Offline"}
+                  </span>
+                </div>
+                <span className="text-sm text-stone-600">Position: {roomState.positions[player] ?? 1}</span>
               </div>
-              <span className="text-sm text-stone-600">Position: {roomState.positions[player] ?? 1}</span>
-            </div>
-          ))}
+            );
+          })}
           {!roomState?.players.length && <p className="text-sm text-stone-500">No players in room yet.</p>}
         </div>
       </section>
