@@ -562,8 +562,8 @@ export default function Home() {
                       <g key={`ladder-${jump.from}-${jump.to}`} stroke="#047857" strokeWidth="0.7" strokeLinecap="round">
                         <line {...railA} />
                         <line {...railB} />
-                        {rungs.map((rung) => (
-                          <line key={`${jump.from}-${jump.to}-${rung.x1}`} {...rung} />
+                        {rungs.map((rung, rungIndex) => (
+                          <line key={`${jump.from}-${jump.to}-rung-${rungIndex}`} {...rung} />
                         ))}
                       </g>
                     );
