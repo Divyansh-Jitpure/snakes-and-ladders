@@ -7,12 +7,8 @@ import type { RoomState } from "./types";
 type SidebarProps = {
   connected: boolean;
   turnMessage: string;
-  playerName: string;
   roomCode: string;
-  setPlayerName: (value: string) => void;
-  setRoomCode: (value: string) => void;
-  createRoom: () => void;
-  joinRoom: () => void;
+  onLeaveRoom: () => void;
   rollDice: () => void;
   canRoll: boolean;
   isRolling: boolean;
@@ -31,12 +27,8 @@ type SidebarProps = {
 export default function Sidebar({
   connected,
   turnMessage,
-  playerName,
   roomCode,
-  setPlayerName,
-  setRoomCode,
-  createRoom,
-  joinRoom,
+  onLeaveRoom,
   rollDice,
   canRoll,
   isRolling,
@@ -62,38 +54,23 @@ export default function Sidebar({
 
       <section className="space-y-4 rounded-2xl border border-[#4f2b19] bg-[linear-gradient(180deg,#2f1a12_0%,#1b0f0b_100%)] p-4 shadow-xl">
         <h2 className="text-lg font-bold text-amber-100">Control Panel</h2>
-        <input
-          className="w-full rounded-xl border border-amber-900/50 bg-[#3b2116] px-4 py-2 text-amber-50 outline-none transition focus:border-amber-500"
-          placeholder="Player name"
-          value={playerName}
-          onChange={(event) => setPlayerName(event.target.value)}
-        />
-        <input
-          className="w-full rounded-xl border border-amber-900/50 bg-[#3b2116] px-4 py-2 uppercase text-amber-50 outline-none transition focus:border-amber-500"
-          placeholder="Room code"
-          value={roomCode}
-          onChange={(event) => setRoomCode(event.target.value)}
-        />
-        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-          <button
-            className="rounded-xl bg-amber-600 px-4 py-2 font-semibold text-stone-950 transition hover:bg-amber-500"
-            onClick={createRoom}
-          >
-            Create
-          </button>
-          <button
-            className="rounded-xl border border-amber-700 bg-[#2c1710] px-4 py-2 font-semibold text-amber-100 transition hover:bg-[#3d2117]"
-            onClick={joinRoom}
-          >
-            Join
-          </button>
+        <p className="rounded-xl border border-amber-900/50 bg-[#3b2116] px-4 py-2 text-sm font-semibold text-amber-100">
+          Room: {roomCode}
+        </p>
+        <div className="grid grid-cols-1 gap-2">
           <button
             className="rounded-xl bg-emerald-600 px-4 py-2 font-semibold text-white transition hover:bg-emerald-500 disabled:cursor-not-allowed disabled:bg-emerald-900"
             onClick={rollDice}
             disabled={!canRoll}
-          >
-            {isRolling ? "Rolling..." : "Roll"}
-          </button>
+            >
+              {isRolling ? "Rolling..." : "Roll"}
+            </button>
+            <button
+              className="rounded-xl border border-amber-700 bg-[#2c1710] px-4 py-2 font-semibold text-amber-100 transition hover:bg-[#3d2117]"
+              onClick={onLeaveRoom}
+            >
+              Back to Menu
+            </button>
         </div>
 
         <div className="flex items-center gap-3 rounded-xl border border-amber-900/50 bg-[#3b2116] px-3 py-2">
