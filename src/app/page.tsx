@@ -77,6 +77,12 @@ const jumps: Jump[] = [
 ];
 
 const tokenColors = ["#ea580c", "#0284c7", "#16a34a", "#7c3aed"];
+const snakePalette = [
+  { body: "#84cc16", belly: "#d9f99d" },
+  { body: "#eab308", belly: "#fde68a" },
+  { body: "#22d3ee", belly: "#a5f3fc" },
+  { body: "#f43f5e", belly: "#fda4af" }
+];
 const tokenSlots = [
   { x: -1.8, y: -1.8 },
   { x: 1.8, y: -1.8 },
@@ -107,9 +113,22 @@ function snakePath(jump: Jump, index: number) {
   const from = positionToBoardPoint(jump.from);
   const to = positionToBoardPoint(jump.to);
   const bend = index % 2 === 0 ? 1 : -1;
-  const cx = (from.left + to.left) / 2 + ((from.top - to.top) / 3) * bend;
-  const cy = (from.top + to.top) / 2 + ((to.left - from.left) / 4) * bend;
-  return `M ${from.left} ${from.top} Q ${cx} ${cy}, ${to.left} ${to.top}`;
+  const c1x = from.left + (to.left - from.left) * 0.28 + ((from.top - to.top) / 4.6) * bend;
+  const c1y = from.top + (to.top - from.top) * 0.24 + ((to.left - from.left) / 6.2) * bend;
+  const c2x = from.left + (to.left - from.left) * 0.72 - ((from.top - to.top) / 4.2) * bend;
+  const c2y = from.top + (to.top - from.top) * 0.8 - ((to.left - from.left) / 6) * bend;
+  const headX = from.left;
+  const headY = from.top;
+  const eyeOffsetX = bend * 0.85;
+  const colors = snakePalette[index % snakePalette.length];
+  return {
+    d: `M ${from.left} ${from.top} C ${c1x} ${c1y}, ${c2x} ${c2y}, ${to.left} ${to.top}`,
+    headX,
+    headY,
+    eyeOffsetX,
+    body: colors.body,
+    belly: colors.belly
+  };
 }
 
 function ladderSegments(jump: Jump) {
@@ -189,6 +208,12 @@ export default function Home() {
   const [moveLog, setMoveLog] = useState<MoveLogEntry[]>([]);
 
   const jumpMap = useMemo(() => new Map(jumps.map((jump) => [jump.from, jump])), []);
+  const activeSnakeTarget = useMemo(() => {
+    if (lastMove?.jumpType !== "snake") {
+      return null;
+    }
+    return lastMove.endPosition;
+  }, [lastMove]);
 
   const activeTurn = useMemo(() => {
     if (!roomState) {
@@ -610,27 +635,77 @@ export default function Home() {
               >
                 {jumps
                   .filter((jump) => jump.type === "snake")
-                  .map((jump, index) => (
-                    <path
-                      key={`snake-${jump.from}-${jump.to}`}
-                      d={snakePath(jump, index)}
-                      fill="none"
-                      stroke="#9ef01a"
-                      strokeWidth="1.8"
-                      strokeLinecap="round"
-                    />
-                  ))}
+                  .map((jump, index) => {
+                    const snake = snakePath(jump, index);
+                    const snakeKey = `snake-${jump.from}-${jump.to}`;
+                    const isActiveSnake = activeSnakeTarget === jump.to;
+                    return (
+                      <g
+                        key={snakeKey}
+                        className="snake-group"
+                        style={{ animationDelay: `${index * 0.5}s` }}
+                      >
+                        <path d={snake.d} fill="none" stroke="#1f2937" strokeWidth="2.2" strokeLinecap="round" />
+                        <path d={snake.d} fill="none" stroke={snake.body} strokeWidth="1.75" strokeLinecap="round" />
+                        <path d={snake.d} fill="none" stroke={snake.belly} strokeWidth="0.7" strokeLinecap="round" />
+                        <circle
+                          className="snake-head"
+                          cx={snake.headX}
+                          cy={snake.headY}
+                          r="1.08"
+                          fill={snake.body}
+                          stroke="#1f2937"
+                          strokeWidth="0.18"
+                          style={{ animationDelay: `${index * 0.45}s` }}
+                        />
+                        <circle
+                          className="snake-eye"
+                          cx={snake.headX - snake.eyeOffsetX}
+                          cy={snake.headY - 0.35}
+                          r="0.26"
+                          fill="#ffffff"
+                          style={{ animationDelay: `${index * 0.3}s` }}
+                        />
+                        <circle
+                          className="snake-eye"
+                          cx={snake.headX + snake.eyeOffsetX}
+                          cy={snake.headY - 0.35}
+                          r="0.26"
+                          fill="#ffffff"
+                          style={{ animationDelay: `${index * 0.3}s` }}
+                        />
+                        <circle cx={snake.headX - snake.eyeOffsetX} cy={snake.headY - 0.35} r="0.11" fill="#0f172a" />
+                        <circle cx={snake.headX + snake.eyeOffsetX} cy={snake.headY - 0.35} r="0.11" fill="#0f172a" />
+                        {isActiveSnake && (
+                          <path
+                            className="snake-tongue"
+                            d={`M ${snake.headX} ${snake.headY + 0.55} l -0.18 0.42 m 0.18 -0.42 l 0.18 0.42`}
+                            stroke="#ef4444"
+                            strokeWidth="0.12"
+                            fill="none"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                          />
+                        )}
+                      </g>
+                    );
+                  })}
 
                 {jumps
                   .filter((jump) => jump.type === "ladder")
                   .map((jump) => {
                     const { railA, railB, rungs } = ladderSegments(jump);
                     return (
-                      <g key={`ladder-${jump.from}-${jump.to}`} stroke="#fde047" strokeWidth="0.8" strokeLinecap="round">
-                        <line {...railA} />
-                        <line {...railB} />
+                      <g key={`ladder-${jump.from}-${jump.to}`} strokeLinecap="round">
+                        <line {...railA} stroke="#3f1f0f" strokeWidth="1.25" />
+                        <line {...railB} stroke="#3f1f0f" strokeWidth="1.25" />
+                        <line {...railA} stroke="#f59e0b" strokeWidth="0.8" />
+                        <line {...railB} stroke="#f59e0b" strokeWidth="0.8" />
                         {rungs.map((rung, rungIndex) => (
-                          <line key={`${jump.from}-${jump.to}-rung-${rungIndex}`} {...rung} />
+                          <g key={`${jump.from}-${jump.to}-rung-${rungIndex}`}>
+                            <line {...rung} stroke="#3f1f0f" strokeWidth="1.05" />
+                            <line {...rung} stroke="#facc15" strokeWidth="0.6" />
+                          </g>
                         ))}
                       </g>
                     );
