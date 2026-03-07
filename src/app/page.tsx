@@ -531,82 +531,84 @@ export default function Home() {
   };
 
   return (
-    <main className="mx-auto flex min-h-screen max-w-5xl flex-col gap-6 px-3 py-5 sm:px-4 sm:py-8 md:gap-8 md:px-8">
+    <main className="mx-auto flex min-h-screen max-w-6xl flex-col gap-6 px-3 py-5 sm:px-4 sm:py-8 md:gap-8 md:px-8">
       <motion.section
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.45 }}
-        className="rounded-3xl border border-stone-300/70 bg-[radial-gradient(circle_at_20%_20%,#fde68a_0,#f97316_32%,#9a3412_100%)] p-5 text-white shadow-xl sm:p-8"
+        className="rounded-3xl border border-amber-200/70 bg-[radial-gradient(circle_at_15%_15%,#fef3c7_0,#f97316_34%,#7c2d12_100%)] p-5 text-white shadow-2xl sm:p-8"
       >
-        <p className="text-xs uppercase tracking-[0.25em] text-amber-100">Online Multiplayer</p>
-        <h1 className="mt-3 text-3xl font-semibold sm:text-4xl md:text-5xl">Snakes and Ladders</h1>
-        <p className="mt-3 max-w-2xl text-sm text-amber-100 md:text-base">
-          Create or join a room, roll in turn, and continue the same player session even after page refresh.
-        </p>
-        <div className="mt-4">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <p className="rounded-full border border-amber-100/50 bg-black/10 px-3 py-1 text-xs uppercase tracking-[0.2em] text-amber-100">
+            Online Multiplayer
+          </p>
           <Link
             href="/history"
-            className="inline-flex rounded-xl border border-amber-100/60 bg-amber-50/20 px-4 py-2 text-sm font-medium text-white transition hover:bg-amber-50/30"
+            className="inline-flex rounded-xl border border-amber-100/60 bg-amber-50/15 px-4 py-2 text-sm font-medium text-white transition hover:bg-amber-50/30"
           >
             View match history
           </Link>
         </div>
+        <h1 className="mt-4 text-3xl font-semibold sm:text-4xl md:text-5xl">Snakes and Ladders</h1>
+        <p className="mt-3 max-w-2xl text-sm text-amber-50 md:text-base">
+          Create or join a room, roll in turn, and continue the same player session even after page refresh.
+        </p>
       </motion.section>
 
-      <section className="grid gap-5 md:grid-cols-2">
-        <div className="rounded-2xl border border-stone-200 bg-white p-5 shadow-sm">
-          <p className="text-sm font-medium text-stone-700">Connection</p>
+      <section className="grid gap-4 md:grid-cols-[0.9fr_1.1fr]">
+        <div className="rounded-2xl border border-stone-200 bg-white p-4 shadow-sm">
+          <p className="text-xs font-semibold uppercase tracking-wide text-stone-500">Connection</p>
           <p className={`mt-1 text-lg font-semibold ${connected ? "text-emerald-600" : "text-red-600"}`}>
             {connected ? "Connected" : "Disconnected"}
           </p>
-          <p className="mt-2 text-sm text-stone-500">Realtime URL: {realtimeUrl}</p>
+          <p className="mt-2 truncate text-xs text-stone-500">{realtimeUrl}</p>
         </div>
 
-        <div className="rounded-2xl border border-stone-200 bg-white p-5 shadow-sm">
-          <p className="text-sm font-medium text-stone-700">Status</p>
-          <p className="mt-1 text-sm text-stone-600">{status}</p>
-          <p className="mt-2 text-sm text-stone-600">{lastRoll}</p>
-          <p className="mt-2 text-sm font-medium text-stone-700">{turnMessage}</p>
+        <div className="rounded-2xl border border-stone-200 bg-white p-4 shadow-sm">
+          <p className="text-xs font-semibold uppercase tracking-wide text-stone-500">Live Status</p>
+          <p className="mt-1 text-sm text-stone-700">{status}</p>
+          <p className="mt-1 text-sm text-stone-600">{lastRoll}</p>
+          <p className="mt-1 text-sm font-medium text-stone-800">{turnMessage}</p>
         </div>
       </section>
 
-      <section className="grid gap-8 rounded-3xl border border-stone-200 bg-white p-4 shadow-sm sm:p-6 md:grid-cols-[1fr_1.1fr]">
+      <section className="grid gap-8 rounded-3xl border border-stone-200 bg-white/90 p-4 shadow-sm sm:p-6 md:grid-cols-[0.95fr_1.05fr]">
         <div className="space-y-4">
           <h2 className="text-xl font-semibold text-stone-900">Lobby</h2>
           <input
-            className="w-full rounded-xl border border-stone-300 px-4 py-2 outline-none transition focus:border-orange-400"
+            className="w-full rounded-xl border border-stone-300 bg-stone-50 px-4 py-2 outline-none transition focus:border-orange-400 focus:bg-white"
             placeholder="Player name"
             value={playerName}
             onChange={(event) => setPlayerName(event.target.value)}
           />
           <input
-            className="w-full rounded-xl border border-stone-300 px-4 py-2 uppercase outline-none transition focus:border-orange-400"
+            className="w-full rounded-xl border border-stone-300 bg-stone-50 px-4 py-2 uppercase outline-none transition focus:border-orange-400 focus:bg-white"
             placeholder="Room code (example: ROOM1)"
             value={roomCode}
             onChange={(event) => setRoomCode(event.target.value)}
           />
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <button
-              className="rounded-xl bg-orange-500 px-4 py-2 font-medium text-white transition hover:bg-orange-600"
+              className="rounded-xl bg-orange-500 px-4 py-2 font-semibold text-white transition hover:bg-orange-600"
               onClick={createRoom}
             >
               Create room
             </button>
             <button
-              className="rounded-xl border border-stone-300 px-4 py-2 font-medium text-stone-700 transition hover:bg-stone-100"
+              className="rounded-xl border border-stone-300 bg-white px-4 py-2 font-semibold text-stone-700 transition hover:bg-stone-100"
               onClick={() => joinRoom()}
             >
               Join room
             </button>
             <button
-              className="rounded-xl bg-emerald-600 px-4 py-2 font-medium text-white transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:bg-emerald-300"
+              className="rounded-xl bg-emerald-600 px-4 py-2 font-semibold text-white transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:bg-emerald-300"
               onClick={rollDice}
               disabled={!canRoll}
             >
               {isRolling ? "Rolling..." : "Roll dice"}
             </button>
           </div>
-          <div className="mt-2 flex items-center gap-3 rounded-xl border border-stone-200 bg-stone-50 px-3 py-2">
+          <div className="mt-2 flex items-center gap-3 rounded-xl border border-stone-200 bg-stone-50 px-3 py-2 shadow-inner">
             <span className="text-sm font-medium text-stone-700">Dice</span>
             <motion.div
               key={diceFace}
@@ -650,7 +652,7 @@ export default function Home() {
 
         <div className="space-y-4">
           <h2 className="text-xl font-semibold text-stone-900">Board</h2>
-          <div className="rounded-2xl border border-stone-200 bg-stone-50 p-2">
+          <div className="rounded-2xl border border-stone-200 bg-gradient-to-b from-stone-100 to-stone-50 p-2">
             <div className="relative aspect-square overflow-hidden rounded-xl border border-stone-300 bg-white">
               <div className="grid h-full w-full grid-cols-10 grid-rows-10">
                 {Array.from({ length: 100 }).map((_, index) => {
@@ -756,7 +758,7 @@ export default function Home() {
         </div>
       </section>
 
-      <section className="rounded-3xl border border-stone-200 bg-white p-4 shadow-sm sm:p-6">
+      <section className="rounded-3xl border border-stone-200 bg-white/90 p-4 shadow-sm sm:p-6">
         <h2 className="text-xl font-semibold text-stone-900">Live Room State</h2>
         <p className="text-sm text-stone-600">Joined room: {joinedRoom ?? "None"}</p>
         <p className="text-sm text-stone-600">Current turn: {activeTurn ?? "N/A"}</p>
