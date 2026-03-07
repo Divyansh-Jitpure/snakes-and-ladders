@@ -1,65 +1,334 @@
-import Image from "next/image";
+"use client";
+
+import { motion } from "framer-motion";
+import { io, type Socket } from "socket.io-client";
+import { useEffect, useMemo, useRef, useState } from "react";
+
+type RoomState = {
+  players: string[];
+  positions: Record<string, number>;
+  turnIndex: number;
+  winner: string | null;
+};
+
+type JumpType = "snake" | "ladder";
+
+type Jump = {
+  from: number;
+  to: number;
+  type: JumpType;
+};
+
+const realtimeUrl = process.env.NEXT_PUBLIC_REALTIME_URL ?? "http://localhost:4000";
+const boardSize = 10;
+const jumps: Jump[] = [
+  { from: 2, to: 38, type: "ladder" },
+  { from: 7, to: 14, type: "ladder" },
+  { from: 8, to: 31, type: "ladder" },
+  { from: 15, to: 26, type: "ladder" },
+  { from: 16, to: 6, type: "snake" },
+  { from: 21, to: 42, type: "ladder" },
+  { from: 28, to: 84, type: "ladder" },
+  { from: 36, to: 44, type: "ladder" },
+  { from: 46, to: 25, type: "snake" },
+  { from: 49, to: 11, type: "snake" },
+  { from: 51, to: 67, type: "ladder" },
+  { from: 62, to: 19, type: "snake" },
+  { from: 64, to: 60, type: "snake" },
+  { from: 71, to: 91, type: "ladder" },
+  { from: 74, to: 53, type: "snake" },
+  { from: 78, to: 98, type: "ladder" },
+  { from: 87, to: 94, type: "ladder" },
+  { from: 89, to: 68, type: "snake" },
+  { from: 92, to: 88, type: "snake" },
+  { from: 95, to: 75, type: "snake" },
+  { from: 99, to: 80, type: "snake" }
+];
+
+const tokenColors = ["#ea580c", "#0284c7", "#16a34a", "#7c3aed"];
+
+function cellNumberFromVisualCoordinates(visualRow: number, visualColumn: number) {
+  const rowFromBottom = boardSize - 1 - visualRow;
+  const isForward = rowFromBottom % 2 === 0;
+  const base = rowFromBottom * boardSize;
+  return isForward ? base + visualColumn + 1 : base + (boardSize - visualColumn);
+}
+
+function positionToBoardPoint(position: number) {
+  const safePosition = Math.min(100, Math.max(1, position));
+  const rowFromBottom = Math.floor((safePosition - 1) / boardSize);
+  const rowIndex = boardSize - 1 - rowFromBottom;
+  const colInRow = (safePosition - 1) % boardSize;
+  const colIndex = rowFromBottom % 2 === 0 ? colInRow : boardSize - 1 - colInRow;
+  return {
+    left: ((colIndex + 0.5) / boardSize) * 100,
+    top: ((rowIndex + 0.5) / boardSize) * 100
+  };
+}
 
 export default function Home() {
+  const socketRef = useRef<Socket | null>(null);
+  const [connected, setConnected] = useState(false);
+  const [playerName, setPlayerName] = useState("");
+  const [roomCode, setRoomCode] = useState("");
+  const [joinedRoom, setJoinedRoom] = useState<string | null>(null);
+  const [status, setStatus] = useState("Enter your name and room code.");
+  const [lastRoll, setLastRoll] = useState("No rolls yet.");
+  const [roomState, setRoomState] = useState<RoomState | null>(null);
+  const jumpMap = useMemo(() => new Map(jumps.map((jump) => [jump.from, jump])), []);
+
+  const activeTurn = useMemo(() => {
+    if (!roomState) {
+      return null;
+    }
+    return roomState.players[roomState.turnIndex] ?? null;
+  }, [roomState]);
+
+  useEffect(() => {
+    const socket = io(realtimeUrl, { transports: ["websocket"] });
+    socketRef.current = socket;
+
+    socket.on("connect", () => setConnected(true));
+    socket.on("disconnect", () => setConnected(false));
+
+    return () => {
+      socket.disconnect();
+      socketRef.current = null;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!joinedRoom || !socketRef.current) {
+      return;
+    }
+
+    const stateEvent = `room:state:${joinedRoom}`;
+    const diceEvent = `dice:result:${joinedRoom}`;
+
+    const handleState = (incomingState: RoomState) => {
+      setRoomState(incomingState);
+      if (incomingState.winner) {
+        setStatus(`${incomingState.winner} won the match.`);
+      }
+    };
+
+    const handleDice = (payload: { playerName: string; dice: number; nextPosition: number }) => {
+      setLastRoll(`${payload.playerName} rolled ${payload.dice} and moved to ${payload.nextPosition}.`);
+    };
+
+    socketRef.current.on(stateEvent, handleState);
+    socketRef.current.on(diceEvent, handleDice);
+
+    return () => {
+      socketRef.current?.off(stateEvent, handleState);
+      socketRef.current?.off(diceEvent, handleDice);
+    };
+  }, [joinedRoom]);
+
+  const createRoom = () => {
+    const socket = socketRef.current;
+    if (!socket) {
+      return;
+    }
+
+    socket.emit(
+      "room:create",
+      { roomCode, playerName },
+      (response: { ok: boolean; message?: string }) => {
+        if (!response.ok) {
+          setStatus(response.message ?? "Unable to create room.");
+          return;
+        }
+        const cleanRoom = roomCode.trim().toUpperCase();
+        setJoinedRoom(cleanRoom);
+        setStatus(`Room ${cleanRoom} created. Share this code with friends.`);
+      }
+    );
+  };
+
+  const joinRoom = () => {
+    const socket = socketRef.current;
+    if (!socket) {
+      return;
+    }
+
+    socket.emit(
+      "room:join",
+      { roomCode, playerName },
+      (response: { ok: boolean; message?: string }) => {
+        if (!response.ok) {
+          setStatus(response.message ?? "Unable to join room.");
+          return;
+        }
+        const cleanRoom = roomCode.trim().toUpperCase();
+        setJoinedRoom(cleanRoom);
+        setStatus(`Joined room ${cleanRoom}. Wait for your turn.`);
+      }
+    );
+  };
+
+  const rollDice = () => {
+    socketRef.current?.emit("game:roll", {}, (response: { ok: boolean; message?: string }) => {
+      if (!response.ok) {
+        setStatus(response.message ?? "Unable to roll dice.");
+      }
+    });
+  };
+
   return (
-    <div className="flex min-h-screen items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex min-h-screen w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
+    <main className="mx-auto flex min-h-screen max-w-5xl flex-col gap-6 px-3 py-5 sm:px-4 sm:py-8 md:gap-8 md:px-8">
+      <motion.section
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.45 }}
+        className="rounded-3xl border border-stone-300/70 bg-[radial-gradient(circle_at_20%_20%,#fde68a_0,#f97316_32%,#9a3412_100%)] p-5 text-white shadow-xl sm:p-8"
+      >
+        <p className="text-xs uppercase tracking-[0.25em] text-amber-100">Online Multiplayer</p>
+        <h1 className="mt-3 text-3xl font-semibold sm:text-4xl md:text-5xl">Snakes and Ladders</h1>
+        <p className="mt-3 max-w-2xl text-sm text-amber-100 md:text-base">
+          MVP lobby is ready. Create a room, invite friends, and roll live turns through Socket.IO.
+        </p>
+      </motion.section>
+
+      <section className="grid gap-5 md:grid-cols-2">
+        <div className="rounded-2xl border border-stone-200 bg-white p-5 shadow-sm">
+          <p className="text-sm font-medium text-stone-700">Connection</p>
+          <p className={`mt-1 text-lg font-semibold ${connected ? "text-emerald-600" : "text-red-600"}`}>
+            {connected ? "Connected" : "Disconnected"}
           </p>
+          <p className="mt-2 text-sm text-stone-500">Realtime URL: {realtimeUrl}</p>
         </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
+
+        <div className="rounded-2xl border border-stone-200 bg-white p-5 shadow-sm">
+          <p className="text-sm font-medium text-stone-700">Status</p>
+          <p className="mt-1 text-sm text-stone-600">{status}</p>
+          <p className="mt-2 text-sm text-stone-600">{lastRoll}</p>
         </div>
-      </main>
-    </div>
+      </section>
+
+      <section className="grid gap-8 rounded-3xl border border-stone-200 bg-white p-4 shadow-sm sm:p-6 md:grid-cols-[1fr_1.1fr]">
+        <div className="space-y-4">
+          <h2 className="text-xl font-semibold text-stone-900">Lobby</h2>
+          <input
+            className="w-full rounded-xl border border-stone-300 px-4 py-2 outline-none transition focus:border-orange-400"
+            placeholder="Player name"
+            value={playerName}
+            onChange={(event) => setPlayerName(event.target.value)}
+          />
+          <input
+            className="w-full rounded-xl border border-stone-300 px-4 py-2 uppercase outline-none transition focus:border-orange-400"
+            placeholder="Room code (example: ROOM1)"
+            value={roomCode}
+            onChange={(event) => setRoomCode(event.target.value)}
+          />
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+            <button
+              className="rounded-xl bg-orange-500 px-4 py-2 font-medium text-white transition hover:bg-orange-600"
+              onClick={createRoom}
+            >
+              Create room
+            </button>
+            <button
+              className="rounded-xl border border-stone-300 px-4 py-2 font-medium text-stone-700 transition hover:bg-stone-100"
+              onClick={joinRoom}
+            >
+              Join room
+            </button>
+            <button
+              className="rounded-xl bg-emerald-600 px-4 py-2 font-medium text-white transition hover:bg-emerald-700"
+              onClick={rollDice}
+            >
+              Roll dice
+            </button>
+          </div>
+        </div>
+
+        <div className="space-y-4">
+          <h2 className="text-xl font-semibold text-stone-900">Board</h2>
+          <div className="rounded-2xl border border-stone-200 bg-stone-50 p-2">
+            <div className="relative aspect-square overflow-hidden rounded-xl border border-stone-300 bg-white">
+              <div className="grid h-full w-full grid-cols-10 grid-rows-10">
+                {Array.from({ length: 100 }).map((_, index) => {
+                  const visualRow = Math.floor(index / boardSize);
+                  const visualColumn = index % boardSize;
+                  const number = cellNumberFromVisualCoordinates(visualRow, visualColumn);
+                  const jump = jumpMap.get(number);
+                  const isLightCell = (visualRow + visualColumn) % 2 === 0;
+
+                  return (
+                    <div
+                      key={number}
+                      className={`relative border border-stone-200 p-0.5 text-[8px] sm:p-1 sm:text-[10px] md:text-xs ${
+                        isLightCell ? "bg-amber-50" : "bg-emerald-50"
+                      }`}
+                    >
+                      <span className="font-semibold text-stone-600">{number}</span>
+                      {jump && (
+                        <span
+                          className={`absolute right-0.5 bottom-0.5 rounded px-1 py-0.5 text-[8px] font-semibold text-white sm:right-1 sm:bottom-1 sm:text-[9px] ${
+                            jump.type === "ladder" ? "bg-emerald-500" : "bg-rose-500"
+                          }`}
+                        >
+                          {jump.type === "ladder" ? "L" : "S"}:{jump.to}
+                        </span>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+
+              {roomState?.players.map((player, index) => {
+                const position = roomState.positions[player] ?? 1;
+                const point = positionToBoardPoint(position);
+                const offset = index % 2 === 0 ? -10 : 10;
+
+                return (
+                  <motion.div
+                    key={player}
+                    className="absolute z-10 h-4 w-4 rounded-full border-2 border-white shadow sm:h-5 sm:w-5"
+                    style={{ backgroundColor: tokenColors[index % tokenColors.length] }}
+                    animate={{
+                      left: `calc(${point.left}% + ${offset}px)`,
+                      top: `calc(${point.top}% + ${index < 2 ? "-10px" : "10px"})`
+                    }}
+                    transition={{ type: "spring", stiffness: 180, damping: 20 }}
+                    title={`${player}: ${position}`}
+                  />
+                );
+              })}
+            </div>
+          </div>
+          <div className="flex flex-wrap gap-2 text-xs text-stone-600">
+            <span className="rounded-full bg-emerald-100 px-2 py-1 font-medium">L = Ladder</span>
+            <span className="rounded-full bg-rose-100 px-2 py-1 font-medium">S = Snake</span>
+          </div>
+        </div>
+      </section>
+
+      <section className="rounded-3xl border border-stone-200 bg-white p-4 shadow-sm sm:p-6">
+        <h2 className="text-xl font-semibold text-stone-900">Live Room State</h2>
+        <p className="text-sm text-stone-600">Joined room: {joinedRoom ?? "None"}</p>
+        <p className="text-sm text-stone-600">Current turn: {activeTurn ?? "N/A"}</p>
+        <p className="text-sm font-semibold text-stone-700">Winner: {roomState?.winner ?? "No winner yet"}</p>
+        <div className="mt-4 space-y-2">
+          {roomState?.players.map((player, index) => (
+            <div
+              key={player}
+              className="flex items-center justify-between rounded-xl border border-stone-200 px-3 py-2"
+            >
+              <div className="flex items-center gap-2">
+                <span
+                  className="inline-block h-3 w-3 rounded-full"
+                  style={{ backgroundColor: tokenColors[index % tokenColors.length] }}
+                />
+                <span className="font-medium text-stone-800">{player}</span>
+              </div>
+              <span className="text-sm text-stone-600">Position: {roomState.positions[player] ?? 1}</span>
+            </div>
+          ))}
+          {!roomState?.players.length && <p className="text-sm text-stone-500">No players in room yet.</p>}
+        </div>
+      </section>
+    </main>
   );
 }
