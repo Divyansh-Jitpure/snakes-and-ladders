@@ -61,6 +61,7 @@ model Move {
 
 model GameHistory {
   id         String     @id @default(cuid())
+  dedupeKey  String     @unique
   roomCode   String
   winnerName String
   playerNames Json

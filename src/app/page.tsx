@@ -246,7 +246,13 @@ export default function Home() {
         return;
       }
 
-      const roundKey = `${joinedRoom}#${roundNumberRef.current}`;
+      const moveFingerprint = moveLog
+        .map(
+          (move) =>
+            `${move.playerName}:${move.dice}:${move.startPosition}:${move.rawPosition}:${move.nextPosition}:${move.jumpType ?? "none"}`
+        )
+        .join("|");
+      const roundKey = `${joinedRoom}#${roundNumberRef.current}#${winnerName}#${moveLog.length}#${moveFingerprint}`;
       if (savedRoundKeysRef.current[roundKey]) {
         return;
       }
@@ -256,6 +262,7 @@ export default function Home() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
+          dedupeKey: roundKey,
           roomCode: joinedRoom,
           winnerName,
           playerNames: players,

@@ -46,6 +46,14 @@ export default async function HistoryPage() {
                 </p>
                 <p className="mt-1 text-sm text-stone-600">Players: {playerNames.join(", ") || "Unknown"}</p>
                 <p className="mt-1 text-sm text-stone-600">Moves: {match.moves.length}</p>
+                <div className="mt-3">
+                  <Link
+                    href={`/history/${match.id}`}
+                    className="inline-flex rounded-lg border border-stone-300 px-3 py-1.5 text-xs font-medium text-stone-700 transition hover:bg-stone-100"
+                  >
+                    View details
+                  </Link>
+                </div>
               </article>
             );
           })}
