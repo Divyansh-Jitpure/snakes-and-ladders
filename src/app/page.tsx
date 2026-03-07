@@ -20,6 +20,14 @@ type Jump = {
   type: JumpType;
 };
 
+type LastMove = {
+  playerName: string;
+  startPosition: number;
+  endPosition: number;
+  jumpType: JumpType | null;
+  dice: number | null;
+};
+
 const realtimeUrl = process.env.NEXT_PUBLIC_REALTIME_URL ?? "http://localhost:4000";
 const boardSize = 10;
 const jumps: Jump[] = [
@@ -69,12 +77,17 @@ function positionToBoardPoint(position: number) {
 
 export default function Home() {
   const socketRef = useRef<Socket | null>(null);
+  const rollingTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const [connected, setConnected] = useState(false);
   const [playerName, setPlayerName] = useState("");
+  const [currentPlayerName, setCurrentPlayerName] = useState<string | null>(null);
   const [roomCode, setRoomCode] = useState("");
   const [joinedRoom, setJoinedRoom] = useState<string | null>(null);
   const [status, setStatus] = useState("Enter your name and room code.");
   const [lastRoll, setLastRoll] = useState("No rolls yet.");
+  const [diceFace, setDiceFace] = useState(1);
+  const [isRolling, setIsRolling] = useState(false);
+  const [lastMove, setLastMove] = useState<LastMove | null>(null);
   const [roomState, setRoomState] = useState<RoomState | null>(null);
   const jumpMap = useMemo(() => new Map(jumps.map((jump) => [jump.from, jump])), []);
 
@@ -84,6 +97,24 @@ export default function Home() {
     }
     return roomState.players[roomState.turnIndex] ?? null;
   }, [roomState]);
+
+  const canRoll = Boolean(
+    connected &&
+      joinedRoom &&
+      roomState &&
+      activeTurn &&
+      currentPlayerName &&
+      activeTurn === currentPlayerName &&
+      !roomState.winner &&
+      !isRolling
+  );
+
+  const turnMessage = useMemo(() => {
+    if (!roomState || !currentPlayerName || !activeTurn) {
+      return "Join a room to start playing.";
+    }
+    return activeTurn === currentPlayerName ? "Your turn." : `Waiting for ${activeTurn}.`;
+  }, [activeTurn, currentPlayerName, roomState]);
 
   useEffect(() => {
     const socket = io(realtimeUrl, { transports: ["websocket"] });
@@ -99,6 +130,9 @@ export default function Home() {
     });
 
     return () => {
+      if (rollingTimerRef.current) {
+        clearInterval(rollingTimerRef.current);
+      }
       socket.disconnect();
       socketRef.current = null;
     };
@@ -113,7 +147,33 @@ export default function Home() {
     const diceEvent = `dice:result:${joinedRoom}`;
 
     const handleState = (incomingState: RoomState) => {
-      setRoomState(incomingState);
+      setRoomState((previousState) => {
+        if (previousState) {
+          const movedPlayer = incomingState.players.find((player) => {
+            const previousPosition = previousState.positions[player] ?? 1;
+            const nextPosition = incomingState.positions[player] ?? 1;
+            return previousPosition !== nextPosition;
+          });
+
+          if (movedPlayer) {
+            const startPosition = previousState.positions[movedPlayer] ?? 1;
+            const endPosition = incomingState.positions[movedPlayer] ?? 1;
+            const jumpedFrom = jumps.find((jump) => jump.to === endPosition)?.from ?? null;
+            const jumpType = jumpedFrom ? (jumpMap.get(jumpedFrom)?.type ?? null) : null;
+
+            setLastMove({
+              playerName: movedPlayer,
+              startPosition,
+              endPosition,
+              jumpType,
+              dice: null
+            });
+          }
+        }
+
+        return incomingState;
+      });
+
       if (incomingState.winner) {
         const message = `${incomingState.winner} won the match.`;
         setStatus(message);
@@ -122,7 +182,16 @@ export default function Home() {
     };
 
     const handleDice = (payload: { playerName: string; dice: number; nextPosition: number }) => {
+      if (rollingTimerRef.current) {
+        clearInterval(rollingTimerRef.current);
+        rollingTimerRef.current = null;
+      }
+      setIsRolling(false);
+      setDiceFace(payload.dice);
       setLastRoll(`${payload.playerName} rolled ${payload.dice} and moved to ${payload.nextPosition}.`);
+      setLastMove((previous) =>
+        previous && previous.playerName === payload.playerName ? { ...previous, dice: payload.dice } : previous
+      );
     };
 
     socketRef.current.on(stateEvent, handleState);
@@ -132,7 +201,7 @@ export default function Home() {
       socketRef.current?.off(stateEvent, handleState);
       socketRef.current?.off(diceEvent, handleDice);
     };
-  }, [joinedRoom]);
+  }, [joinedRoom, jumpMap]);
 
   const createRoom = () => {
     const socket = socketRef.current;
@@ -151,7 +220,9 @@ export default function Home() {
           return;
         }
         const cleanRoom = roomCode.trim().toUpperCase();
+        const cleanName = playerName.trim();
         setJoinedRoom(cleanRoom);
+        setCurrentPlayerName(cleanName);
         const message = `Room ${cleanRoom} created. Share this code with friends.`;
         setStatus(message);
         toast.success(message);
@@ -176,7 +247,9 @@ export default function Home() {
           return;
         }
         const cleanRoom = roomCode.trim().toUpperCase();
+        const cleanName = playerName.trim();
         setJoinedRoom(cleanRoom);
+        setCurrentPlayerName(cleanName);
         const message = `Joined room ${cleanRoom}. Wait for your turn.`;
         setStatus(message);
         toast.success(message);
@@ -185,8 +258,23 @@ export default function Home() {
   };
 
   const rollDice = () => {
+    if (!canRoll) {
+      toast.error("Wait for your turn before rolling.");
+      return;
+    }
+
+    setIsRolling(true);
+    rollingTimerRef.current = setInterval(() => {
+      setDiceFace(Math.floor(Math.random() * 6) + 1);
+    }, 90);
+
     socketRef.current?.emit("game:roll", {}, (response: { ok: boolean; message?: string }) => {
       if (!response.ok) {
+        if (rollingTimerRef.current) {
+          clearInterval(rollingTimerRef.current);
+          rollingTimerRef.current = null;
+        }
+        setIsRolling(false);
         const message = response.message ?? "Unable to roll dice.";
         setStatus(message);
         toast.error(message);
@@ -224,6 +312,7 @@ export default function Home() {
           <p className="text-sm font-medium text-stone-700">Status</p>
           <p className="mt-1 text-sm text-stone-600">{status}</p>
           <p className="mt-2 text-sm text-stone-600">{lastRoll}</p>
+          <p className="mt-2 text-sm font-medium text-stone-700">{turnMessage}</p>
         </div>
       </section>
 
@@ -256,11 +345,23 @@ export default function Home() {
               Join room
             </button>
             <button
-              className="rounded-xl bg-emerald-600 px-4 py-2 font-medium text-white transition hover:bg-emerald-700"
+              className="rounded-xl bg-emerald-600 px-4 py-2 font-medium text-white transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:bg-emerald-300"
               onClick={rollDice}
+              disabled={!canRoll}
             >
-              Roll dice
+              {isRolling ? "Rolling..." : "Roll dice"}
             </button>
+          </div>
+          <div className="mt-2 flex items-center gap-3 rounded-xl border border-stone-200 bg-stone-50 px-3 py-2">
+            <span className="text-sm font-medium text-stone-700">Dice</span>
+            <motion.div
+              key={diceFace}
+              animate={isRolling ? { rotate: 360 } : { rotate: 0 }}
+              transition={isRolling ? { repeat: Infinity, duration: 0.35, ease: "linear" } : { duration: 0.2 }}
+              className="flex h-10 w-10 items-center justify-center rounded-lg border border-stone-300 bg-white text-lg font-semibold text-stone-800"
+            >
+              {diceFace}
+            </motion.div>
           </div>
         </div>
 
@@ -275,15 +376,18 @@ export default function Home() {
                   const number = cellNumberFromVisualCoordinates(visualRow, visualColumn);
                   const jump = jumpMap.get(number);
                   const isLightCell = (visualRow + visualColumn) % 2 === 0;
+                  const isMoveEndpoint = lastMove?.endPosition === number;
 
                   return (
                     <div
                       key={number}
                       className={`relative border border-stone-200 p-0.5 text-[8px] sm:p-1 sm:text-[10px] md:text-xs ${
                         isLightCell ? "bg-amber-50" : "bg-emerald-50"
-                      }`}
+                      } ${isMoveEndpoint ? "ring-2 ring-orange-400 ring-inset" : ""}`}
                     >
-                      <span className="font-semibold text-stone-600">{number}</span>
+                      <span className={`font-semibold ${isMoveEndpoint ? "text-orange-700" : "text-stone-600"}`}>
+                        {number}
+                      </span>
                       {jump && (
                         <span
                           className={`absolute right-0.5 bottom-0.5 rounded px-1 py-0.5 text-[8px] font-semibold text-white sm:right-1 sm:bottom-1 sm:text-[9px] ${
@@ -302,6 +406,7 @@ export default function Home() {
                 const position = roomState.positions[player] ?? 1;
                 const point = positionToBoardPoint(position);
                 const offset = index % 2 === 0 ? -10 : 10;
+                const isLastMover = player === lastMove?.playerName;
 
                 return (
                   <motion.div
@@ -310,7 +415,8 @@ export default function Home() {
                     style={{ backgroundColor: tokenColors[index % tokenColors.length] }}
                     animate={{
                       left: `calc(${point.left}% + ${offset}px)`,
-                      top: `calc(${point.top}% + ${index < 2 ? "-10px" : "10px"})`
+                      top: `calc(${point.top}% + ${index < 2 ? "-10px" : "10px"})`,
+                      scale: isLastMover ? 1.2 : 1
                     }}
                     transition={{ type: "spring", stiffness: 180, damping: 20 }}
                     title={`${player}: ${position}`}
@@ -322,6 +428,13 @@ export default function Home() {
           <div className="flex flex-wrap gap-2 text-xs text-stone-600">
             <span className="rounded-full bg-emerald-100 px-2 py-1 font-medium">L = Ladder</span>
             <span className="rounded-full bg-rose-100 px-2 py-1 font-medium">S = Snake</span>
+            {lastMove && (
+              <span className="rounded-full bg-orange-100 px-2 py-1 font-medium text-orange-800">
+                {lastMove.playerName}: {lastMove.startPosition} to {lastMove.endPosition}
+                {lastMove.jumpType ? ` (${lastMove.jumpType})` : ""}
+                {lastMove.dice ? `, dice ${lastMove.dice}` : ""}
+              </span>
+            )}
           </div>
         </div>
       </section>
@@ -330,6 +443,7 @@ export default function Home() {
         <h2 className="text-xl font-semibold text-stone-900">Live Room State</h2>
         <p className="text-sm text-stone-600">Joined room: {joinedRoom ?? "None"}</p>
         <p className="text-sm text-stone-600">Current turn: {activeTurn ?? "N/A"}</p>
+        <p className="text-sm text-stone-600">You are: {currentPlayerName ?? "Not joined"}</p>
         <p className="text-sm font-semibold text-stone-700">Winner: {roomState?.winner ?? "No winner yet"}</p>
         <div className="mt-4 space-y-2">
           {roomState?.players.map((player, index) => (
