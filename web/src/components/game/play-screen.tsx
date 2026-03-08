@@ -219,7 +219,8 @@ export default function PlayScreen({ initialRoomCode, mode, initialPlayerName = 
 
       setIsRolling(false);
       setDiceFace(payload.dice);
-      setLastRoll(`${payload.playerName} rolled ${payload.dice} and moved to ${payload.nextPosition}.`);
+      const bonusRollText = payload.bonusTurn ? " Bonus roll earned." : "";
+      setLastRoll(`${payload.playerName} rolled ${payload.dice} and moved to ${payload.nextPosition}.${bonusRollText}`);
 
       animatingPlayersRef.current[payload.playerName] = true;
       setDisplayedPositions((previous) => ({ ...previous, [payload.playerName]: payload.rawPosition }));
@@ -247,6 +248,10 @@ export default function PlayScreen({ initialRoomCode, mode, initialPlayerName = 
         dice: payload.dice
       });
       setMoveLog((previous) => [...previous, payload]);
+
+      if (payload.bonusTurn) {
+        setStatus(`${payload.playerName} rolled a 6 and gets another turn.`);
+      }
     };
 
     socketRef.current.on(stateEvent, handleState);

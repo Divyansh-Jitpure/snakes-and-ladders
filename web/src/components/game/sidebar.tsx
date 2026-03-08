@@ -42,6 +42,28 @@ export default function Sidebar({
   roomState,
   currentPlayerName
 }: SidebarProps) {
+  const totalPlayers = roomState?.players.length ?? 0;
+  const onlinePlayers = roomState ? roomState.players.filter((player) => roomState.online[player]).length : 0;
+  const hasRoomSnapshot = Boolean(roomState);
+
+  const connectionDetail = !joinedRoom
+    ? "Joining room..."
+    : hasRoomSnapshot
+      ? `Players online: ${onlinePlayers}/${totalPlayers}`
+      : "Syncing room state...";
+
+  const actionHint = !connected
+    ? "Connection lost. Reconnecting..."
+    : !joinedRoom
+      ? "Joining room..."
+      : !hasRoomSnapshot
+        ? "Syncing room state..."
+        : isRolling
+          ? "Rolling..."
+          : canRoll
+            ? "Your turn. Tap Roll."
+            : turnMessage;
+
   return (
     <aside className="flex flex-col gap-4">
       <section className="order-2 rounded-2xl border border-[#4f2b19] bg-[linear-gradient(180deg,#2f1a12_0%,#1b0f0b_100%)] p-4 shadow-xl lg:order-1">
@@ -49,6 +71,7 @@ export default function Sidebar({
         <p className={`mt-1 text-lg font-bold ${connected ? "text-emerald-300" : "text-rose-300"}`}>
           {connected ? "Connected" : "Disconnected"}
         </p>
+        <p className="mt-1 text-xs text-amber-100/75">{connectionDetail}</p>
         <p className="mt-2 text-xs text-amber-100/60">{turnMessage}</p>
       </section>
 
@@ -62,15 +85,9 @@ export default function Sidebar({
             className="rounded-xl bg-emerald-600 px-4 py-2 font-semibold text-white transition hover:bg-emerald-500 disabled:cursor-not-allowed disabled:bg-emerald-900"
             onClick={rollDice}
             disabled={!canRoll}
-            >
-              {isRolling ? "Rolling..." : "Roll"}
-            </button>
-            <button
-              className="rounded-xl border border-amber-700 bg-[#2c1710] px-4 py-2 font-semibold text-amber-100 transition hover:bg-[#3d2117]"
-              onClick={onLeaveRoom}
-            >
-              Back to Menu
-            </button>
+          >
+            {isRolling ? "Rolling..." : "Roll"}
+          </button>
         </div>
 
         <div className="flex items-center gap-3 rounded-xl border border-amber-900/50 bg-[#3b2116] px-3 py-2">
@@ -84,16 +101,25 @@ export default function Sidebar({
             {diceFace}
           </motion.div>
         </div>
+        <p className="text-xs text-amber-100/70">{actionHint}</p>
 
         <div className="rounded-xl border border-amber-900/50 bg-[#3b2116] p-3">
           {!showResetConfirm ? (
-            <button
-              className="w-full rounded-xl border border-amber-700/70 bg-[#2b1710] px-4 py-2 text-sm font-semibold text-amber-100 transition hover:bg-[#3d2117] disabled:cursor-not-allowed disabled:opacity-50"
-              onClick={() => setShowResetConfirm(true)}
-              disabled={!joinedRoom || isRolling}
-            >
-              Reset Match
-            </button>
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+              <button
+                className="rounded-xl border border-amber-700 bg-[#2c1710] px-4 py-2 text-sm font-semibold text-amber-100 transition hover:bg-[#3d2117]"
+                onClick={onLeaveRoom}
+              >
+                Back to Menu
+              </button>
+              <button
+                className="rounded-xl border border-amber-700/70 bg-[#2b1710] px-4 py-2 text-sm font-semibold text-amber-100 transition hover:bg-[#3d2117] disabled:cursor-not-allowed disabled:opacity-50"
+                onClick={() => setShowResetConfirm(true)}
+                disabled={!joinedRoom || isRolling}
+              >
+                Reset Match
+              </button>
+            </div>
           ) : (
             <div className="space-y-2">
               <p className="text-xs text-amber-100/80">Reset this room for everyone and start from square 1?</p>
@@ -112,6 +138,12 @@ export default function Sidebar({
                   Keep playing
                 </button>
               </div>
+              <button
+                className="w-full rounded-xl border border-amber-700 bg-[#2c1710] px-4 py-2 text-sm font-semibold text-amber-100 transition hover:bg-[#3d2117]"
+                onClick={onLeaveRoom}
+              >
+                Back to Menu
+              </button>
             </div>
           )}
         </div>
@@ -129,6 +161,16 @@ export default function Sidebar({
         <p className="mt-1 text-xs text-amber-100/70">You: {currentPlayerName ?? "Not joined"}</p>
         <p className="mt-1 text-xs font-semibold text-amber-200">Winner: {roomState?.winner ?? "No winner yet"}</p>
         <div className="mt-3 space-y-2">
+          {!roomState && (
+            <>
+              <div className="animate-pulse rounded-xl border border-amber-900/40 bg-[#3b2116] px-3 py-2 text-xs text-amber-100/60">
+                Waiting for room snapshot...
+              </div>
+              <div className="animate-pulse rounded-xl border border-amber-900/40 bg-[#3b2116] px-3 py-2 text-xs text-amber-100/50">
+                Player list will appear here.
+              </div>
+            </>
+          )}
           {roomState?.players.map((player, index) => {
             const online = roomState.online[player] ?? false;
             return (
@@ -150,7 +192,7 @@ export default function Sidebar({
               </div>
             );
           })}
-          {!roomState?.players.length && <p className="text-sm text-amber-100/60">No players in room yet.</p>}
+          {roomState && !roomState.players.length && <p className="text-sm text-amber-100/60">No players in room yet.</p>}
         </div>
       </section>
     </aside>

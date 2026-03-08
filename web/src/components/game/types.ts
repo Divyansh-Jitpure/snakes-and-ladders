@@ -29,6 +29,7 @@ export type DicePayload = {
   rawPosition: number;
   nextPosition: number;
   jumpType: JumpType | null;
+  bonusTurn?: boolean;
 };
 
 export type MoveLogEntry = {
@@ -38,4 +39,5 @@ export type MoveLogEntry = {
   rawPosition: number;
   nextPosition: number;
   jumpType: JumpType | null;
+  bonusTurn?: boolean;
 };

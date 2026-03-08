@@ -196,8 +196,8 @@ io.on("connection", (socket) => {
         return;
       }
 
-      if (room.players.length >= 4) {
-        callback({ ok: false, message: "Room is full (max 4 players)." });
+      if (room.players.length >= 6) {
+        callback({ ok: false, message: "Room is full (max 6 players)." });
         return;
       }
 
@@ -249,11 +249,12 @@ io.on("connection", (socket) => {
     }
     const nextPosition = laddersAndSnakes[rawPosition] ?? rawPosition;
     const jumpType = nextPosition === rawPosition ? null : nextPosition > rawPosition ? "ladder" : "snake";
+    const bonusTurn = dice === 6;
 
     room.positions[playerName] = nextPosition;
     if (nextPosition === 100) {
       room.winner = playerName;
-    } else {
+    } else if (!bonusTurn) {
       room.turnIndex = (room.turnIndex + 1) % room.players.length;
     }
 
@@ -264,7 +265,8 @@ io.on("connection", (socket) => {
       startPosition,
       rawPosition,
       nextPosition,
-      jumpType
+      jumpType,
+      bonusTurn
     });
     callback({ ok: true });
   });

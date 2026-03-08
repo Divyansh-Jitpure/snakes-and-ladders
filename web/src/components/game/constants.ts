@@ -26,12 +26,14 @@ export const jumps: Jump[] = [
   { from: 99, to: 80, type: "snake" }
 ];
 
-export const tokenColors = ["#ea580c", "#0284c7", "#16a34a", "#7c3aed"];
+export const tokenColors = ["#ea580c", "#0284c7", "#16a34a", "#7c3aed", "#e11d48", "#f59e0b"];
 export const tokenSlots = [
-  { x: -1.8, y: -1.8 },
-  { x: 1.8, y: -1.8 },
-  { x: -1.8, y: 1.8 },
-  { x: 1.8, y: 1.8 }
+  { x: -2.4, y: -2.2 },
+  { x: 0, y: -2.2 },
+  { x: 2.4, y: -2.2 },
+  { x: -2.4, y: 2.2 },
+  { x: 0, y: 2.2 },
+  { x: 2.4, y: 2.2 }
 ];
 
 export const snakePalette = [
