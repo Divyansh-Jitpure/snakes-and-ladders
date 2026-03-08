@@ -1,5 +1,6 @@
 "use client";
 
+import { clearStoredIdentity } from "@/components/game/identity";
 import Link from "next/link";
 import { signOut, useSession } from "next-auth/react";
 import { HiArrowLeftOnRectangle, HiArrowRightOnRectangle } from "react-icons/hi2";
@@ -36,6 +37,7 @@ export default function AuthControls() {
       <button
         className="inline-flex items-center gap-1.5 rounded-lg border border-amber-300/45 bg-amber-100/10 px-3 py-2 text-xs font-semibold text-amber-50 transition hover:bg-amber-100/20"
         onClick={() => {
+          clearStoredIdentity();
           void signOut({ callbackUrl: "/" });
         }}
       >

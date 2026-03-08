@@ -33,6 +33,15 @@ export function persistIdentity(playerName: string, roomCode: string, playerId: 
   window.localStorage.setItem(identityPlayerIdKey, playerId);
 }
 
+export function clearStoredIdentity() {
+  if (typeof window === "undefined") {
+    return;
+  }
+  window.localStorage.removeItem(identityNameKey);
+  window.localStorage.removeItem(identityRoomKey);
+  window.localStorage.removeItem(identityPlayerIdKey);
+}
+
 export function resolvePlayerId(stateValue: string, setPlayerId: (value: string) => void) {
   if (stateValue.trim()) {
     return stateValue.trim();

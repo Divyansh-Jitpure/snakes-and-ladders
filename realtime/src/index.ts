@@ -122,7 +122,7 @@ io.on("connection", (socket) => {
     "room:create",
     (
       payload: { roomCode: string; playerName: string; playerId: string },
-      callback: (result: { ok: boolean; message?: string; playerName?: string }) => void
+      callback: (result: { ok: boolean; message?: string; playerName?: string; state?: RoomPublicState }) => void
     ) => {
       const roomCode = payload.roomCode.trim().toUpperCase();
       const playerName = payload.playerName.trim();
@@ -152,8 +152,9 @@ io.on("connection", (socket) => {
       socket.data.roomCode = roomCode;
       socket.data.playerName = playerName;
       socket.data.playerId = playerId;
+      const state = publicState(room);
       emitRoomState(roomCode, room);
-      callback({ ok: true, playerName });
+      callback({ ok: true, playerName, state });
     }
   );
 
@@ -161,7 +162,7 @@ io.on("connection", (socket) => {
     "room:join",
     (
       payload: { roomCode: string; playerName: string; playerId: string },
-      callback: (result: { ok: boolean; message?: string; playerName?: string }) => void
+      callback: (result: { ok: boolean; message?: string; playerName?: string; state?: RoomPublicState }) => void
     ) => {
       const roomCode = payload.roomCode.trim().toUpperCase();
       const requestedName = payload.playerName.trim();
@@ -184,8 +185,9 @@ io.on("connection", (socket) => {
         socket.data.roomCode = roomCode;
         socket.data.playerName = existingNameForId;
         socket.data.playerId = playerId;
+        const state = publicState(room);
         emitRoomState(roomCode, room);
-        callback({ ok: true, message: "Reconnected to room.", playerName: existingNameForId });
+        callback({ ok: true, message: "Reconnected to room.", playerName: existingNameForId, state });
         return;
       }
 
@@ -209,8 +211,9 @@ io.on("connection", (socket) => {
       socket.data.roomCode = roomCode;
       socket.data.playerName = requestedName;
       socket.data.playerId = playerId;
+      const state = publicState(room);
       emitRoomState(roomCode, room);
-      callback({ ok: true, playerName: requestedName });
+      callback({ ok: true, playerName: requestedName, state });
     }
   );
 

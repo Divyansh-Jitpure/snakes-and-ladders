@@ -40,7 +40,7 @@ export default function PlayScreen({ initialRoomCode, mode, initialPlayerName = 
   const savedRoundKeysRef = useRef<Record<string, boolean>>({});
 
   const [connected, setConnected] = useState(false);
-  const [playerName, setPlayerName] = useState(() => readStoredValue(identityNameKey) || initialPlayerName.trim());
+  const [playerName, setPlayerName] = useState(() => initialPlayerName.trim() || readStoredValue(identityNameKey));
   const [currentPlayerName, setCurrentPlayerName] = useState<string | null>(null);
   const [roomCode] = useState(() => initialRoomCode.trim().toUpperCase());
   const [playerId, setPlayerId] = useState(() => readStoredValue(identityPlayerIdKey));
@@ -280,7 +280,7 @@ export default function PlayScreen({ initialRoomCode, mode, initialPlayerName = 
       socket.emit(
         "room:join",
         { roomCode: cleanRoom, playerName: cleanName, playerId: cleanPlayerId },
-        (response: { ok: boolean; message?: string; playerName?: string }) => {
+        (response: { ok: boolean; message?: string; playerName?: string; state?: RoomState }) => {
           if (!response.ok) {
             const message = response.message ?? "Unable to join room.";
             setStatus(message);
@@ -300,6 +300,16 @@ export default function PlayScreen({ initialRoomCode, mode, initialPlayerName = 
           persistIdentity(resolvedName, cleanRoom, cleanPlayerId);
           roundNumberRef.current = 0;
           setMoveLog([]);
+          if (response.state) {
+            setRoomState(response.state);
+            setDisplayedPositions(() => {
+              const next: Record<string, number> = {};
+              response.state?.players.forEach((player) => {
+                next[player] = response.state?.positions[player] ?? 1;
+              });
+              return next;
+            });
+          }
 
           const message = options?.isReconnect
             ? `Reconnected as ${resolvedName} in room ${cleanRoom}.`
@@ -335,7 +345,7 @@ export default function PlayScreen({ initialRoomCode, mode, initialPlayerName = 
       socket.emit(
         "room:create",
         { roomCode: cleanRoom, playerName: cleanName, playerId: cleanPlayerId },
-        (response: { ok: boolean; message?: string; playerName?: string }) => {
+        (response: { ok: boolean; message?: string; playerName?: string; state?: RoomState }) => {
           if (!response.ok) {
             if (options?.fallbackToJoin) {
               joinRoom({ silentError: true, isReconnect: true });
@@ -356,6 +366,16 @@ export default function PlayScreen({ initialRoomCode, mode, initialPlayerName = 
           persistIdentity(resolvedName, cleanRoom, cleanPlayerId);
           roundNumberRef.current = 0;
           setMoveLog([]);
+          if (response.state) {
+            setRoomState(response.state);
+            setDisplayedPositions(() => {
+              const next: Record<string, number> = {};
+              response.state?.players.forEach((player) => {
+                next[player] = response.state?.positions[player] ?? 1;
+              });
+              return next;
+            });
+          }
 
           const message = `Room ${cleanRoom} created. Share this code with friends.`;
           setStatus(message);
