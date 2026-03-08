@@ -148,11 +148,14 @@ export default function PlayScreen({ initialRoomCode, mode, initialPlayerName = 
           moves: moveLog
         })
       });
+      const result = (await response.json().catch(() => null)) as { ok?: boolean; duplicate?: boolean } | null;
 
-      if (!response.ok) {
+      if (!response.ok || !result?.ok) {
         savedRoundKeysRef.current[roundKey] = false;
         throw new Error("Unable to save match history.");
       }
+
+      return result.duplicate ? "duplicate" : "saved";
     },
     [joinedRoom, moveLog]
   );
@@ -189,7 +192,11 @@ export default function PlayScreen({ initialRoomCode, mode, initialPlayerName = 
 
         if (currentPlayerName === incomingState.winner) {
           persistHistory(incomingState.winner, incomingState.players)
-            .then(() => {
+            .then((saveState) => {
+              if (saveState === "duplicate") {
+                toast.info("Match already saved in history.");
+                return;
+              }
               toast.success("Match saved to history.");
             })
             .catch(() => {

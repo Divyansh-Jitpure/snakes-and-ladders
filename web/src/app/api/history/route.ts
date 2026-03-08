@@ -1,5 +1,6 @@
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { Prisma } from "@prisma/client";
 import { NextResponse } from "next/server";
 
 type MovePayload = {
@@ -21,6 +22,8 @@ type HistoryPayload = {
 
 export async function POST(request: Request) {
   const session = await auth();
+  const rawUserId = session?.user?.id ?? null;
+  const createdByUserId = rawUserId?.startsWith("guest:") ? null : rawUserId;
   const body = (await request.json()) as Partial<HistoryPayload>;
   const dedupeKey = body.dedupeKey?.trim();
   const roomCode = body.roomCode?.trim().toUpperCase();
@@ -39,7 +42,7 @@ export async function POST(request: Request) {
         roomCode,
         winnerName,
         playerNames,
-        createdByUserId: session?.user?.id ?? null,
+        createdByUserId,
         moves: {
           create: moves.map((move) => ({
             playerName: move.playerName,
@@ -57,8 +60,11 @@ export async function POST(request: Request) {
         }
       }
     });
-  } catch {
-    return NextResponse.json({ ok: true, duplicate: true });
+  } catch (error) {
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
+      return NextResponse.json({ ok: true, duplicate: true });
+    }
+    return NextResponse.json({ ok: false, message: "Unable to save match history." }, { status: 500 });
   }
 
   return NextResponse.json({ ok: true });
