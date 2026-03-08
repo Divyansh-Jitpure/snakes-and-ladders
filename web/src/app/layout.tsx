@@ -44,7 +44,7 @@ export default function RootLayout({
             <TopHeader />
             <div className="flex-1">{children}</div>
             <footer className="border-t border-amber-500/20 bg-[linear-gradient(180deg,#120a06_0%,#1c0f09_100%)] px-4 py-5 text-center text-sm text-amber-100/75 sm:px-6">
-              (c) {currentYear} All Rights Reserved -{" "}
+              &copy; {currentYear} All Rights Reserved -{" "}
               <a
                 href="https://github.com/Divyansh-Jitpure"
                 target="_blank"
