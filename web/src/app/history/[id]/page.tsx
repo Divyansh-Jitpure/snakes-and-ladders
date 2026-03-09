@@ -1,6 +1,8 @@
+import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { cookies } from "next/headers";
 import Link from "next/link";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 
 export const dynamic = "force-dynamic";
 
@@ -9,14 +11,28 @@ type Props = {
 };
 
 export default async function HistoryDetailPage({ params }: Props) {
+  const session = await auth();
+  const userId = session?.user?.id?.trim() ?? "";
+  if (!userId) {
+    redirect("/#auth-gate");
+  }
+
+  const isGuestUser = userId.startsWith("guest:");
+  const cookieStore = await cookies();
+  const guestOwnerKey = cookieStore.get("snl_guest_history_key")?.value?.trim() ?? "";
+
   const resolvedParams = await params;
   const id = resolvedParams?.id;
   if (!id) {
     notFound();
   }
 
-  const match = await prisma.gameHistory.findUnique({
-    where: { id },
+  const match = await prisma.gameHistory.findFirst({
+    where: isGuestUser
+      ? guestOwnerKey
+        ? { id, createdByGuestKey: guestOwnerKey }
+        : { id, createdByGuestKey: "__no_guest_history_key__" }
+      : { id, createdByUserId: userId },
     include: { moves: { orderBy: { createdAt: "asc" } } }
   });
 

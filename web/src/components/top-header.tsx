@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { useSession } from "next-auth/react";
 import AuthControls from "@/components/auth-controls";
 import { HiClock, HiHome, HiSparkles } from "react-icons/hi2";
+import { toast } from "sonner";
 
 export default function TopHeader() {
   const { data: session, status } = useSession();
@@ -38,13 +39,26 @@ export default function TopHeader() {
               </Link>
             )}
             {!onHistory && (
-              <Link
-                href="/history"
-                className="inline-flex items-center gap-1.5 rounded-lg border border-amber-400/20 px-2.5 py-2 text-xs font-semibold text-amber-100/85 transition hover:border-amber-300/35 hover:bg-amber-100/10"
-              >
-                <HiClock className="text-sm" aria-hidden />
-                <span className="hidden sm:inline">History</span>
-              </Link>
+              isAuthenticated ? (
+                <Link
+                  href="/history"
+                  className="inline-flex items-center gap-1.5 rounded-lg border border-amber-400/20 px-2.5 py-2 text-xs font-semibold text-amber-100/85 transition hover:border-amber-300/35 hover:bg-amber-100/10"
+                >
+                  <HiClock className="text-sm" aria-hidden />
+                  <span className="hidden sm:inline">History</span>
+                </Link>
+              ) : (
+                <Link
+                  href="/#auth-gate"
+                  className="inline-flex items-center gap-1.5 rounded-lg border border-amber-400/20 px-2.5 py-2 text-xs font-semibold text-amber-100/85 transition hover:border-amber-300/35 hover:bg-amber-100/10"
+                  onClick={() => {
+                    toast.info("Sign in to view your match history.");
+                  }}
+                >
+                  <HiClock className="text-sm" aria-hidden />
+                  <span className="hidden sm:inline">History</span>
+                </Link>
+              )
             )}
             {onPlay && isAuthenticated && (
               <span className="hidden rounded-lg border border-emerald-400/35 bg-emerald-300/10 px-2.5 py-2 text-[11px] font-semibold uppercase tracking-wide text-emerald-200/90 md:inline-flex">

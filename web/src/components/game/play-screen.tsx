@@ -56,6 +56,7 @@ export default function PlayScreen({ initialRoomCode, mode, initialPlayerName = 
   const [moveLog, setMoveLog] = useState<MoveLogEntry[]>([]);
   const [isMobile, setIsMobile] = useState(false);
   const isAuthenticated = sessionStatus === "authenticated" && Boolean(session?.user);
+  const sessionUserId = session?.user?.id?.trim() ?? "";
   const sessionPlayerName = (session?.user?.name ?? "").trim();
   const effectivePlayerName = playerName.trim() || sessionPlayerName;
 
@@ -125,6 +126,10 @@ export default function PlayScreen({ initialRoomCode, mode, initialPlayerName = 
         return;
       }
 
+      const isGuestUser = sessionUserId.startsWith("guest:");
+      const resolvedPlayerId = playerId.trim() || readStoredValue(identityPlayerIdKey).trim();
+      const guestOwnerKey = isGuestUser && resolvedPlayerId ? `${sessionUserId}:${resolvedPlayerId}` : undefined;
+
       const moveFingerprint = moveLog
         .map(
           (move) =>
@@ -145,7 +150,8 @@ export default function PlayScreen({ initialRoomCode, mode, initialPlayerName = 
           roomCode: joinedRoom,
           winnerName,
           playerNames: players,
-          moves: moveLog
+          moves: moveLog,
+          guestOwnerKey
         })
       });
       const result = (await response.json().catch(() => null)) as { ok?: boolean; duplicate?: boolean } | null;
@@ -157,7 +163,7 @@ export default function PlayScreen({ initialRoomCode, mode, initialPlayerName = 
 
       return result.duplicate ? "duplicate" : "saved";
     },
-    [joinedRoom, moveLog]
+    [joinedRoom, moveLog, playerId, sessionUserId]
   );
 
   useEffect(() => {

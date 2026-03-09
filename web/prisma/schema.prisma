@@ -73,6 +73,7 @@ model GameHistory {
   winnerName      String
   playerNames     Json
   createdByUserId String?
+  createdByGuestKey String?
   createdAt       DateTime   @default(now())
   moves           GameMove[]
   createdBy       User?      @relation(fields: [createdByUserId], references: [id], onDelete: SetNull)
@@ -80,6 +81,7 @@ model GameHistory {
   @@index([createdAt])
   @@index([winnerName])
   @@index([createdByUserId, createdAt])
+  @@index([createdByGuestKey, createdAt])
 }
 
 model GameMove {
